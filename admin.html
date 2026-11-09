@@ -699,7 +699,7 @@ async function runMultiSourceScraper(e){
   });
   if(error)throw error;
   if(!data?.success)throw new Error(data?.message||"Scraper gagal dijalankan.");
-  msg.textContent=`Selesai. Ditemukan: ${data.found??0}. Baru disimpan: ${data.saved??0}. Duplikat dilewati: ${data.skipped??0}. Semua data baru berstatus pending.`;
+  msg.textContent=`Selesai. Ditemukan: ${data.total??data.found??0}. Baru disimpan: ${data.saved??0}. Duplikat dilewati: ${data.skipped??0}. Semua data baru berstatus pending.`;
   toast("Scraper selesai. Periksa antrean admin.");
   await loadScrapedQueue();
  }catch(error){
