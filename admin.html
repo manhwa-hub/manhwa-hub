@@ -618,16 +618,13 @@ async function admin(){
   <div class="stats section admin-stats"><div class="stat"><b>${list.length}</b><span>Total manhwa</span></div><div class="stat"><b>${total}</b><span>Total chapter</span></div><div class="stat"><b>Aktif</b><span>Akses admin</span></div></div>
   <div class="admin-tools"><div class="admin-search"><span>⌕</span><input class="field" id="adminGlobalSearch" type="search" placeholder="Cari judul manhwa atau chapter..."></div><div class="admin-jumps"><button class="btn small" data-admin-jump="adminManhwaForm">＋ Manhwa</button><button class="btn small" data-admin-jump="adminChapterForm">＋ Chapter</button><button class="btn small" data-admin-jump="adminPagesForm">↑ Upload halaman</button></div></div>
   <section class="section admin-panel" id="admin-scraper-panel">
-   <div class="section-head"><div><h2>Bot Scraper Manhwa</h2><p class="meta">Uji jalur penyimpanan API ke antrean pemeriksaan admin.</p></div><span class="pill">API provider belum terhubung</span></div>
-   <div class="notice" style="margin:12px 0">Tahap ini menguji pengiriman metadata ke tabel <b>scraped_manhwa</b>. Ini belum mengambil data otomatis dari penyedia. Hubungkan hanya API yang memberi izin komersial dan dokumentasi resmi.</div>
-   <form id="scraperQueueForm" class="form">
-    <label>Judul manhwa<input class="field" name="title" required maxlength="200" placeholder="Judul dari API resmi"></label>
-    <label>Source ID<input class="field" name="source_id" required maxlength="200" placeholder="ID unik dari penyedia API"></label>
-    <label>Deskripsi<textarea class="field" name="description" maxlength="5000" placeholder="Sinopsis (opsional)"></textarea></label>
-    <label>URL cover HTTPS<input class="field" name="cover_url" type="url" placeholder="https://... (opsional)"></label>
-    <label>Genre, pisahkan koma<input class="field" name="genres" placeholder="Action, Fantasy"></label>
-    <button class="btn primary" type="submit" id="scraperQueueSubmit">Kirim ke antrean pemeriksaan</button>
-    <p class="meta" id="scraperQueueMsg" aria-live="polite">Data yang dikirim akan berstatus pending dan belum tampil untuk pengunjung.</p>
+   <div class="section-head"><div><h2>Bot Scraper Manhwa</h2><p class="meta">Cari metadata dan kirim hasilnya ke antrean pemeriksaan.</p></div><span class="pill">RatuManhwa aktif</span></div>
+   <div class="notice" style="margin:12px 0">Saat ini sumber yang sudah tersambung adalah RatuManhwa. Komiku dan Shinigami belum diaktifkan. Metadata yang ditemukan akan masuk berstatus pending; pastikan hak penggunaan cover dan sinopsis sebelum menerbitkannya.</div>
+   <form id="multiSourceScraperForm" class="form">
+    <label>Kata kunci judul (kosongkan untuk mengambil daftar terbaru)<input class="field" name="query" maxlength="150" placeholder="Contoh: Solo Leveling"></label>
+    <label>Sumber data<select class="field" name="source"><option value="ratumanhwa">RatuManhwa</option></select></label>
+    <button class="btn primary" type="submit" id="multiSourceScraperSubmit">Cari dan simpan ke antrean</button>
+    <p class="meta" id="multiSourceScraperMsg" aria-live="polite">Hasil akan disimpan ke antrean admin dengan status pending.</p>
    </form>
   </section>
   <section class="section admin-panel" id="admin-scraper-review">
@@ -640,7 +637,7 @@ async function admin(){
   <section class="section admin-panel" id="admin-upload-pages"><h2>Upload Halaman Chapter</h2><form id="adminPagesForm" class="form"><label>Pilih chapter<select class="field" name="chapter_id" id="adminChapterSelect" required><option value="">Memuat...</option></select></label><label>Gambar halaman (bisa pilih banyak sekaligus)<input class="field" id="adminPageFiles" name="pages" type="file" accept="image/*,.jpg,.jpeg,.png,.webp" multiple></label><p class="meta" id="pageFileInfo" aria-live="polite">Belum ada gambar dipilih. Ketuk kolom di atas, pilih gambar, lalu tekan Selesai/Pilih.</p><div class="upload-preview" id="uploadPreview" aria-live="polite"></div><p class="meta">File JPG, PNG, atau WEBP. Maksimal 50 gambar per batch dan 15 MB per gambar. Nomor halaman dilanjutkan otomatis setelah halaman terakhir.</p><button class="btn primary">Unggah Halaman</button><p class="meta" id="pagesMsg"></p></form></section>
   <section class="section admin-panel" id="admin-manhwa-list"><div class="section-head"><h2>Daftar Manhwa</h2><button class="btn small" id="refreshAdmin">Muat ulang</button></div><div class="table-wrap"><table><thead><tr><th>Judul</th><th>Status</th><th>Chapter</th><th>Aksi</th></tr></thead><tbody>${list.map(m=>`<tr data-admin-search-row data-search-text="${esc((m.title+" "+m.slug+" "+m.status).toLowerCase())}"><td>${esc(m.title)}</td><td>${esc(m.status)}</td><td>${m.chapters?.[0]?.count||0}</td><td><button class="btn small" data-admin-edit="${esc(m.id)}">Edit</button> <button class="btn small" data-admin-delete="${esc(m.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada manhwa.</td></tr>'}</tbody></table></div></section>
   <section class="section admin-panel" id="admin-chapter-list"><h2>Kelola Chapter</h2><div class="table-wrap"><table><thead><tr><th>Manhwa</th><th>Chapter</th><th>Judul</th><th>Aksi</th></tr></thead><tbody>${(chapterRows||[]).map(c=>`<tr data-admin-search-row data-search-text="${esc(((c.manhwa?.title||"Manhwa")+" "+c.chapter_number+" "+(c.title||"")).toLowerCase())}"><td>${esc(c.manhwa?.title||"Manhwa")}</td><td>${esc(c.chapter_number)}</td><td>${esc(c.title||"-")}</td><td><button class="btn small" data-chapter-edit="${esc(c.id)}" data-number="${esc(c.chapter_number)}" data-title="${esc(c.title||"")}">Edit</button> <button class="btn small" data-chapter-delete="${esc(c.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada chapter.</td></tr>'}</tbody></table></div></section>`;
-  await loadAdminChapterOptions();$("#refreshAdmin").onclick=()=>admin();$("#refreshScraperQueue").onclick=loadScrapedQueue;$("#scraperQueueForm").onsubmit=saveScraperQueue;$("#adminManhwaForm").onsubmit=saveAdminManhwa;$("#adminChapterForm").onsubmit=saveAdminChapter;$("#adminPagesForm").onsubmit=uploadAdminPages;const pagePicker=$("#adminPageFiles");if(pagePicker){const refreshPageFilePreview=()=>{const files=Array.from(pagePicker.files||[]);const info=$("#pageFileInfo"),preview=$("#uploadPreview");if(!info)return;if(!files.length){info.textContent="Belum ada gambar dipilih. Jika baru kembali dari galeri, coba tunggu sebentar atau pilih ulang.";if(preview)preview.innerHTML="";return;}info.textContent=`${files.length} gambar dipilih · ${(files.reduce((n,f)=>n+(Number(f.size)||0),0)/1024/1024).toFixed(1)} MB total`;if(preview)preview.innerHTML=files.map((f,i)=>`<div class="upload-file"><span class="upload-index">${i+1}</span><span class="upload-name">${esc(f.name||("Gambar "+(i+1)))}</span><span class="upload-size">${((f.size||0)/1024/1024).toFixed(1)} MB</span></div>`).join("");};pagePicker.addEventListener("input",refreshPageFilePreview);pagePicker.addEventListener("change",refreshPageFilePreview);pagePicker.addEventListener("cancel",()=>{const info=$("#pageFileInfo");if(info)info.textContent="Pemilihan dibatalkan. Kamu bisa memilih gambar lagi.";});window.addEventListener("focus",()=>setTimeout(refreshPageFilePreview,350),{passive:true});document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(refreshPageFilePreview,350);});}
+  await loadAdminChapterOptions();$("#refreshAdmin").onclick=()=>admin();$("#refreshScraperQueue").onclick=loadScrapedQueue;$("#multiSourceScraperForm").onsubmit=runMultiSourceScraper;$("#adminManhwaForm").onsubmit=saveAdminManhwa;$("#adminChapterForm").onsubmit=saveAdminChapter;$("#adminPagesForm").onsubmit=uploadAdminPages;const pagePicker=$("#adminPageFiles");if(pagePicker){const refreshPageFilePreview=()=>{const files=Array.from(pagePicker.files||[]);const info=$("#pageFileInfo"),preview=$("#uploadPreview");if(!info)return;if(!files.length){info.textContent="Belum ada gambar dipilih. Jika baru kembali dari galeri, coba tunggu sebentar atau pilih ulang.";if(preview)preview.innerHTML="";return;}info.textContent=`${files.length} gambar dipilih · ${(files.reduce((n,f)=>n+(Number(f.size)||0),0)/1024/1024).toFixed(1)} MB total`;if(preview)preview.innerHTML=files.map((f,i)=>`<div class="upload-file"><span class="upload-index">${i+1}</span><span class="upload-name">${esc(f.name||("Gambar "+(i+1)))}</span><span class="upload-size">${((f.size||0)/1024/1024).toFixed(1)} MB</span></div>`).join("");};pagePicker.addEventListener("input",refreshPageFilePreview);pagePicker.addEventListener("change",refreshPageFilePreview);pagePicker.addEventListener("cancel",()=>{const info=$("#pageFileInfo");if(info)info.textContent="Pemilihan dibatalkan. Kamu bisa memilih gambar lagi.";});window.addEventListener("focus",()=>setTimeout(refreshPageFilePreview,350),{passive:true});document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(refreshPageFilePreview,350);});}
   await loadScrapedQueue();
   const adminSearch=$("#adminGlobalSearch");
   if(adminSearch)adminSearch.addEventListener("input",()=>{const q=adminSearch.value.trim().toLowerCase();document.querySelectorAll("[data-admin-search-row]").forEach(row=>{row.hidden=!String(row.dataset.searchText||"").includes(q)});});
@@ -684,32 +681,33 @@ async function reviewScrapedItem(id,status,button){
   button.disabled=false;
  }
 }
-async function saveScraperQueue(e){
+async function runMultiSourceScraper(e){
  e.preventDefault();
- const form=e.currentTarget,msg=$("#scraperQueueMsg"),submit=$("#scraperQueueSubmit"),f=new FormData(form);
+ const form=e.currentTarget;
+ const msg=$("#multiSourceScraperMsg");
+ const submit=$("#multiSourceScraperSubmit");
+ const f=new FormData(form);
  try{
   await requireAdmin();
-  const title=String(f.get("title")||"").trim();
-  const source_id=String(f.get("source_id")||"").trim();
-  const description=String(f.get("description")||"").trim();
-  const cover_url=String(f.get("cover_url")||"").trim();
-  const genres=String(f.get("genres")||"").split(",").map(x=>x.trim()).filter(Boolean);
-  if(!title||!source_id)throw new Error("Judul dan Source ID wajib diisi.");
-  if(cover_url&&!/^https:\/\//i.test(cover_url))throw new Error("URL cover harus diawali https://.");
-  submit.disabled=true;submit.textContent="Mengirim...";msg.textContent="Memeriksa akses dan menyimpan data...";
-  const {data,error}=await db.functions.invoke("manhwa-scraper",{
-   body:{title,source_id,description:description||null,cover_url:cover_url||null,genres}
+  const query=String(f.get("query")||"").trim();
+  const source=String(f.get("source")||"ratumanhwa");
+  submit.disabled=true;
+  submit.textContent="Mencari dan menyimpan...";
+  msg.textContent="Menghubungi sumber dan menyimpan metadata ke antrean...";
+  const {data,error}=await db.functions.invoke("multi-source-scraper",{
+   body:{query,sources:[source]}
   });
   if(error)throw error;
-  if(!data?.success)throw new Error(data?.message||"Scraper tidak menerima data.");
-  msg.textContent=`Berhasil: ${data.message} Status: pending.`;
-  toast("Data masuk ke antrean pemeriksaan.");
-  form.reset();
+  if(!data?.success)throw new Error(data?.message||"Scraper gagal dijalankan.");
+  msg.textContent=`Selesai. Ditemukan: ${data.found??0}. Baru disimpan: ${data.saved??0}. Duplikat dilewati: ${data.skipped??0}. Semua data baru berstatus pending.`;
+  toast("Scraper selesai. Periksa antrean admin.");
+  await loadScrapedQueue();
  }catch(error){
-  console.error("Scraper queue error:",error);
-  msg.textContent="Gagal: "+(error.message||"Periksa koneksi dan konfigurasi Edge Function.");
+  console.error("Multi-source scraper error:",error);
+  msg.textContent="Gagal: "+(error.message||"Periksa sesi login dan Edge Function.");
  }finally{
-  submit.disabled=false;submit.textContent="Kirim ke antrean pemeriksaan";
+  submit.disabled=false;
+  submit.textContent="Cari dan simpan ke antrean";
  }
 }
 async function saveAdminManhwa(e){
