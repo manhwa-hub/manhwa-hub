@@ -630,17 +630,59 @@ async function admin(){
     <p class="meta" id="scraperQueueMsg" aria-live="polite">Data yang dikirim akan berstatus pending dan belum tampil untuk pengunjung.</p>
    </form>
   </section>
+  <section class="section admin-panel" id="admin-scraper-review">
+   <div class="section-head"><div><h2>Pemeriksaan Scraper</h2><p class="meta">Periksa metadata sebelum disetujui atau ditolak.</p></div><button class="btn small" id="refreshScraperQueue" type="button">Muat ulang</button></div>
+   <div id="scraperReviewList" class="meta" aria-live="polite">Memuat antrean pemeriksaan...</div>
+  </section>
   <section class="section admin-panel" id="admin-add-manhwa"><h2>Tambah Manhwa</h2><form id="adminManhwaForm" class="form">
   <label>Judul<input class="field" name="title" required placeholder="The Shadow Hunter"></label><label>Slug URL<input class="field" name="slug" required placeholder="the-shadow-hunter"></label><label>Sinopsis<textarea class="field" name="synopsis"></textarea></label><label>Penulis<input class="field" name="author"></label><label>Ilustrator<input class="field" name="artist"></label><label>Jenis<select class="field" name="type"><option value="manhwa">Manhwa</option><option value="manhua">Manhua</option><option value="manga">Manga</option></select></label><label>Status<select class="field" name="status"><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="hiatus">Hiatus</option></select></label><label>Genre, pisahkan koma<input class="field" name="genres" placeholder="Action, Fantasy"></label><label>Tahun rilis<input class="field" name="release_year" type="number" min="1900" max="2100" value="2026"></label><label>Cover (opsional)<input class="field" name="cover" type="file" accept="image/*"></label><button class="btn primary">Simpan Manhwa</button><p class="meta" id="manhwaMsg"></p></form></section>
   <section class="section admin-panel" id="admin-add-chapter"><h2>Tambah Chapter</h2><form id="adminChapterForm" class="form"><label>Pilih manhwa<select class="field" name="manhwa_id" required>${list.map(m=>`<option value="${esc(m.id)}">${esc(m.title)}</option>`).join("")}</select></label><label>Nomor chapter<input class="field" name="chapter_number" type="number" min="0" step="0.01" required></label><label>Judul chapter<input class="field" name="chapter_title" placeholder="Awakening"></label><button class="btn primary">Buat Chapter</button><p class="meta" id="chapterMsg"></p></form></section>
   <section class="section admin-panel" id="admin-upload-pages"><h2>Upload Halaman Chapter</h2><form id="adminPagesForm" class="form"><label>Pilih chapter<select class="field" name="chapter_id" id="adminChapterSelect" required><option value="">Memuat...</option></select></label><label>Gambar halaman (bisa pilih banyak sekaligus)<input class="field" id="adminPageFiles" name="pages" type="file" accept="image/*,.jpg,.jpeg,.png,.webp" multiple></label><p class="meta" id="pageFileInfo" aria-live="polite">Belum ada gambar dipilih. Ketuk kolom di atas, pilih gambar, lalu tekan Selesai/Pilih.</p><div class="upload-preview" id="uploadPreview" aria-live="polite"></div><p class="meta">File JPG, PNG, atau WEBP. Maksimal 50 gambar per batch dan 15 MB per gambar. Nomor halaman dilanjutkan otomatis setelah halaman terakhir.</p><button class="btn primary">Unggah Halaman</button><p class="meta" id="pagesMsg"></p></form></section>
   <section class="section admin-panel" id="admin-manhwa-list"><div class="section-head"><h2>Daftar Manhwa</h2><button class="btn small" id="refreshAdmin">Muat ulang</button></div><div class="table-wrap"><table><thead><tr><th>Judul</th><th>Status</th><th>Chapter</th><th>Aksi</th></tr></thead><tbody>${list.map(m=>`<tr data-admin-search-row data-search-text="${esc((m.title+" "+m.slug+" "+m.status).toLowerCase())}"><td>${esc(m.title)}</td><td>${esc(m.status)}</td><td>${m.chapters?.[0]?.count||0}</td><td><button class="btn small" data-admin-edit="${esc(m.id)}">Edit</button> <button class="btn small" data-admin-delete="${esc(m.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada manhwa.</td></tr>'}</tbody></table></div></section>
   <section class="section admin-panel" id="admin-chapter-list"><h2>Kelola Chapter</h2><div class="table-wrap"><table><thead><tr><th>Manhwa</th><th>Chapter</th><th>Judul</th><th>Aksi</th></tr></thead><tbody>${(chapterRows||[]).map(c=>`<tr data-admin-search-row data-search-text="${esc(((c.manhwa?.title||"Manhwa")+" "+c.chapter_number+" "+(c.title||"")).toLowerCase())}"><td>${esc(c.manhwa?.title||"Manhwa")}</td><td>${esc(c.chapter_number)}</td><td>${esc(c.title||"-")}</td><td><button class="btn small" data-chapter-edit="${esc(c.id)}" data-number="${esc(c.chapter_number)}" data-title="${esc(c.title||"")}">Edit</button> <button class="btn small" data-chapter-delete="${esc(c.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada chapter.</td></tr>'}</tbody></table></div></section>`;
-  await loadAdminChapterOptions();$("#refreshAdmin").onclick=()=>admin();$("#scraperQueueForm").onsubmit=saveScraperQueue;$("#adminManhwaForm").onsubmit=saveAdminManhwa;$("#adminChapterForm").onsubmit=saveAdminChapter;$("#adminPagesForm").onsubmit=uploadAdminPages;const pagePicker=$("#adminPageFiles");if(pagePicker){const refreshPageFilePreview=()=>{const files=Array.from(pagePicker.files||[]);const info=$("#pageFileInfo"),preview=$("#uploadPreview");if(!info)return;if(!files.length){info.textContent="Belum ada gambar dipilih. Jika baru kembali dari galeri, coba tunggu sebentar atau pilih ulang.";if(preview)preview.innerHTML="";return;}info.textContent=`${files.length} gambar dipilih · ${(files.reduce((n,f)=>n+(Number(f.size)||0),0)/1024/1024).toFixed(1)} MB total`;if(preview)preview.innerHTML=files.map((f,i)=>`<div class="upload-file"><span class="upload-index">${i+1}</span><span class="upload-name">${esc(f.name||("Gambar "+(i+1)))}</span><span class="upload-size">${((f.size||0)/1024/1024).toFixed(1)} MB</span></div>`).join("");};pagePicker.addEventListener("input",refreshPageFilePreview);pagePicker.addEventListener("change",refreshPageFilePreview);pagePicker.addEventListener("cancel",()=>{const info=$("#pageFileInfo");if(info)info.textContent="Pemilihan dibatalkan. Kamu bisa memilih gambar lagi.";});window.addEventListener("focus",()=>setTimeout(refreshPageFilePreview,350),{passive:true});document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(refreshPageFilePreview,350);});}
+  await loadAdminChapterOptions();$("#refreshAdmin").onclick=()=>admin();$("#refreshScraperQueue").onclick=loadScrapedQueue;$("#scraperQueueForm").onsubmit=saveScraperQueue;$("#adminManhwaForm").onsubmit=saveAdminManhwa;$("#adminChapterForm").onsubmit=saveAdminChapter;$("#adminPagesForm").onsubmit=uploadAdminPages;const pagePicker=$("#adminPageFiles");if(pagePicker){const refreshPageFilePreview=()=>{const files=Array.from(pagePicker.files||[]);const info=$("#pageFileInfo"),preview=$("#uploadPreview");if(!info)return;if(!files.length){info.textContent="Belum ada gambar dipilih. Jika baru kembali dari galeri, coba tunggu sebentar atau pilih ulang.";if(preview)preview.innerHTML="";return;}info.textContent=`${files.length} gambar dipilih · ${(files.reduce((n,f)=>n+(Number(f.size)||0),0)/1024/1024).toFixed(1)} MB total`;if(preview)preview.innerHTML=files.map((f,i)=>`<div class="upload-file"><span class="upload-index">${i+1}</span><span class="upload-name">${esc(f.name||("Gambar "+(i+1)))}</span><span class="upload-size">${((f.size||0)/1024/1024).toFixed(1)} MB</span></div>`).join("");};pagePicker.addEventListener("input",refreshPageFilePreview);pagePicker.addEventListener("change",refreshPageFilePreview);pagePicker.addEventListener("cancel",()=>{const info=$("#pageFileInfo");if(info)info.textContent="Pemilihan dibatalkan. Kamu bisa memilih gambar lagi.";});window.addEventListener("focus",()=>setTimeout(refreshPageFilePreview,350),{passive:true});document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(refreshPageFilePreview,350);});}
+  await loadScrapedQueue();
   const adminSearch=$("#adminGlobalSearch");
   if(adminSearch)adminSearch.addEventListener("input",()=>{const q=adminSearch.value.trim().toLowerCase();document.querySelectorAll("[data-admin-search-row]").forEach(row=>{row.hidden=!String(row.dataset.searchText||"").includes(q)});});
   main.querySelectorAll("[data-admin-jump]").forEach(btn=>btn.addEventListener("click",()=>{const target=main.querySelector("#"+btn.dataset.adminJump);if(target){target.scrollIntoView({behavior:"smooth",block:"center"});const field=target.querySelector("input,select,textarea");if(field)field.focus({preventScroll:true});}}));
  }catch(error){console.error(error);main.innerHTML=`<h1 class="page-title">Admin Dashboard</h1><div class="notice">${esc(error.message||"Gagal memuat dashboard.")}</div>${window.MH_ADMIN_MODE?'<button class="btn" id="adminDeniedLogout">Keluar dari akun ini</button>':'<button class="btn" data-go="profile">Kembali</button>'}`;const deniedLogout=$("#adminDeniedLogout");if(deniedLogout)deniedLogout.onclick=()=>logout();}
+}
+async function loadScrapedQueue(){
+ const container=$("#scraperReviewList");
+ if(!container)return;
+ container.textContent="Memuat antrean pemeriksaan...";
+ try{
+  await requireAdmin();
+  const {data,error}=await db.functions.invoke("review-scraped-manhwa",{body:{action:"list"}});
+  if(error)throw error;
+  if(!data?.success)throw new Error(data?.message||"Gagal memuat antrean.");
+  const rows=Array.isArray(data.data)?data.data:[];
+  if(!rows.length){container.textContent="Tidak ada data berstatus pending.";return;}
+  container.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Judul</th><th>Source ID</th><th>Genre</th><th>Aksi</th></tr></thead><tbody>${rows.map(row=>`<tr><td><b>${esc(row.title||"Tanpa judul")}</b><div class="meta">${esc(row.description||"")}</div>${row.cover_url?`<a href="${esc(row.cover_url)}" target="_blank" rel="noopener">Lihat cover</a>`:""}</td><td>${esc(row.source_id||"-")}</td><td>${esc((row.genres||[]).join(", ")||"-")}</td><td><button class="btn small" data-scraper-review-id="${esc(row.id)}" data-scraper-review-status="approved">Setujui</button> <button class="btn small" data-scraper-review-id="${esc(row.id)}" data-scraper-review-status="rejected">Tolak</button></td></tr>`).join("")}</tbody></table></div>`;
+  container.querySelectorAll("[data-scraper-review-id]").forEach(button=>{
+   button.addEventListener("click",()=>reviewScrapedItem(button.dataset.scraperReviewId,button.dataset.scraperReviewStatus,button));
+  });
+ }catch(error){
+  console.error("Load scraper queue error:",error);
+  container.textContent="Gagal memuat antrean: "+(error.message||"Periksa Edge Function.");
+ }
+}
+async function reviewScrapedItem(id,status,button){
+ const container=$("#scraperReviewList");
+ const label=status==="approved"?"menyetujui":"menolak";
+ if(!confirm(`Yakin ingin ${label} data ini?`))return;
+ try{
+  button.disabled=true;
+  const {data,error}=await db.functions.invoke("review-scraped-manhwa",{body:{action:"review",id:Number(id),status}});
+  if(error)throw error;
+  if(!data?.success)throw new Error(data?.message||"Pemeriksaan gagal.");
+  toast(data.message||"Pemeriksaan berhasil.");
+  await loadScrapedQueue();
+ }catch(error){
+  console.error("Review scraper item error:",error);
+  if(container)container.textContent="Gagal memeriksa data: "+(error.message||"Coba muat ulang.");
+  button.disabled=false;
+ }
 }
 async function saveScraperQueue(e){
  e.preventDefault();
