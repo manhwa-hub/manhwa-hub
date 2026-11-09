@@ -565,7 +565,7 @@ function openReader(id,ch){currentId=id;currentChapter=ch;let m=mangas.find(x=>x
 async function profile(){
  let role="user";
  if(db&&user){try{const {data,error}=await db.from("profiles").select("role").eq("id",user.id).maybeSingle();if(!error&&data?.role)role=data.role;}catch(e){console.warn(e)}}
- main.innerHTML=`<h1 class="page-title">Profil Saya</h1><div class="admin-panel" style="max-width:620px"><div style="font-size:42px">👤</div><h2>${user?esc(user.name):"Pengunjung"}</h2><p class="sub">${user?esc(user.email):"Kamu belum masuk ke akun."}</p><div class="toolbar"><button class="btn primary" id="profileAuth">${user?"Keluar":"Masuk / Daftar"}</button><button class="btn" data-go="bookmark">Bookmark</button><button class="btn" data-go="history">Riwayat</button></div><div class="notice">${user?"Akun terhubung ke Supabase.":"Masuk atau daftar untuk menggunakan akun Supabase."}</div></div>`;
+ main.innerHTML=`<h1 class="page-title">Profil Saya</h1><div class="admin-panel" style="max-width:620px"><div style="font-size:42px">👤</div><h2>${user?esc(user.name):"Pengunjung"}</h2><p class="sub">${user?esc(user.email):"Kamu belum masuk ke akun."}</p><div class="toolbar"><button class="btn primary" id="profileAuth">${user?"Keluar":"Masuk / Daftar"}</button><button class="btn" data-go="bookmark">Bookmark</button><button class="btn" data-go="history">Riwayat</button></div><div class="notice">${user?"Akun terhubung ke Supabase.":"Masuk atau daftar untuk menggunakan akun Supabase."}</div>${role==="admin"?'<button class="btn primary" style="margin-top:14px" data-go="admin">Buka Admin Dashboard</button>':""}</div>`;
  $("#profileAuth").onclick=()=>user?logout():authModal();
 }
 async function requireAdmin(){
@@ -579,13 +579,9 @@ async function requireAdmin(){
  user=mapAuthUser(authData.user);
  return authenticatedId;
 }
-function imageMimeType(file){
- const type=String(file?.type||"").toLowerCase();if(["image/jpeg","image/png","image/webp"].includes(type))return type;
- const name=String(file?.name||"").toLowerCase();if(/\.(jpe?g)$/.test(name))return "image/jpeg";if(name.endsWith(".png"))return "image/png";if(name.endsWith(".webp"))return "image/webp";return "";
-}
 function validateImageFile(file,maxBytes=15*1024*1024){
  if(!file||!file.size)throw new Error("Pilih file gambar terlebih dahulu.");
- if(!imageMimeType(file))throw new Error("Format gambar harus JPG, PNG, atau WEBP.");
+ if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("Format gambar harus JPG, PNG, atau WEBP.");
  if(file.size>maxBytes)throw new Error("Ukuran gambar maksimal 15 MB.");
 }
 async function uploadToChapterBucket(file,folder){
@@ -594,7 +590,7 @@ async function uploadToChapterBucket(file,folder){
  await requireAdmin();
  const clean=file.name.replace(/[^a-zA-Z0-9._-]/g,"-").slice(-100);
  const path=`${folder}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${clean}`;
- const {error}=await db.storage.from("chapter-pages").upload(path,file,{cacheControl:"3600",upsert:false,contentType:imageMimeType(file)});
+ const {error}=await db.storage.from("chapter-pages").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});
  if(error)throw error;return db.storage.from("chapter-pages").getPublicUrl(path).data.publicUrl;
 }
 async function loadAdminChapterOptions(){
@@ -616,10 +612,10 @@ async function admin(){
   <section class="section admin-panel" id="admin-add-manhwa"><h2>Tambah Manhwa</h2><form id="adminManhwaForm" class="form">
   <label>Judul<input class="field" name="title" required placeholder="The Shadow Hunter"></label><label>Slug URL<input class="field" name="slug" required placeholder="the-shadow-hunter"></label><label>Sinopsis<textarea class="field" name="synopsis"></textarea></label><label>Penulis<input class="field" name="author"></label><label>Ilustrator<input class="field" name="artist"></label><label>Jenis<select class="field" name="type"><option value="manhwa">Manhwa</option><option value="manhua">Manhua</option><option value="manga">Manga</option></select></label><label>Status<select class="field" name="status"><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="hiatus">Hiatus</option></select></label><label>Genre, pisahkan koma<input class="field" name="genres" placeholder="Action, Fantasy"></label><label>Tahun rilis<input class="field" name="release_year" type="number" min="1900" max="2100" value="2026"></label><label>Cover (opsional)<input class="field" name="cover" type="file" accept="image/*"></label><button class="btn primary">Simpan Manhwa</button><p class="meta" id="manhwaMsg"></p></form></section>
   <section class="section admin-panel" id="admin-add-chapter"><h2>Tambah Chapter</h2><form id="adminChapterForm" class="form"><label>Pilih manhwa<select class="field" name="manhwa_id" required>${list.map(m=>`<option value="${esc(m.id)}">${esc(m.title)}</option>`).join("")}</select></label><label>Nomor chapter<input class="field" name="chapter_number" type="number" min="0" step="0.01" required></label><label>Judul chapter<input class="field" name="chapter_title" placeholder="Awakening"></label><button class="btn primary">Buat Chapter</button><p class="meta" id="chapterMsg"></p></form></section>
-  <section class="section admin-panel" id="admin-upload-pages"><h2>Upload Halaman Chapter</h2><form id="adminPagesForm" class="form"><label>Pilih chapter<select class="field" name="chapter_id" id="adminChapterSelect" required><option value="">Memuat...</option></select></label><label>Gambar halaman (bisa pilih banyak sekaligus)<input class="field" id="adminPageFiles" name="pages" type="file" accept="image/*,.jpg,.jpeg,.png,.webp" multiple></label><p class="meta" id="pageFileInfo" aria-live="polite">Belum ada gambar dipilih. Ketuk kolom di atas, pilih gambar, lalu tekan Selesai/Pilih.</p><div class="upload-preview" id="uploadPreview" aria-live="polite"></div><p class="meta">File JPG, PNG, atau WEBP. Maksimal 50 gambar per batch dan 15 MB per gambar. Nomor halaman dilanjutkan otomatis setelah halaman terakhir.</p><button class="btn primary">Unggah Halaman</button><p class="meta" id="pagesMsg"></p></form></section>
+  <section class="section admin-panel" id="admin-upload-pages"><h2>Upload Halaman Chapter</h2><form id="adminPagesForm" class="form"><label>Pilih chapter<select class="field" name="chapter_id" id="adminChapterSelect" required><option value="">Memuat...</option></select></label><label>Gambar halaman (bisa pilih banyak sekaligus)<input class="field" id="adminPageFiles" name="pages" type="file" accept="image/jpeg,image/png,image/webp" multiple required></label><p class="meta" id="pageFileInfo">Belum ada gambar dipilih. Pilih beberapa gambar sekaligus; urutan nama file menentukan urutan halaman.</p><div class="upload-preview" id="uploadPreview" aria-live="polite"></div><p class="meta">File JPG, PNG, atau WEBP. Maksimal 50 gambar per batch dan 15 MB per gambar. Nomor halaman dilanjutkan otomatis setelah halaman terakhir.</p><button class="btn primary">Unggah Halaman</button><p class="meta" id="pagesMsg"></p></form></section>
   <section class="section admin-panel" id="admin-manhwa-list"><div class="section-head"><h2>Daftar Manhwa</h2><button class="btn small" id="refreshAdmin">Muat ulang</button></div><div class="table-wrap"><table><thead><tr><th>Judul</th><th>Status</th><th>Chapter</th><th>Aksi</th></tr></thead><tbody>${list.map(m=>`<tr data-admin-search-row data-search-text="${esc((m.title+" "+m.slug+" "+m.status).toLowerCase())}"><td>${esc(m.title)}</td><td>${esc(m.status)}</td><td>${m.chapters?.[0]?.count||0}</td><td><button class="btn small" data-admin-edit="${esc(m.id)}">Edit</button> <button class="btn small" data-admin-delete="${esc(m.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada manhwa.</td></tr>'}</tbody></table></div></section>
   <section class="section admin-panel" id="admin-chapter-list"><h2>Kelola Chapter</h2><div class="table-wrap"><table><thead><tr><th>Manhwa</th><th>Chapter</th><th>Judul</th><th>Aksi</th></tr></thead><tbody>${(chapterRows||[]).map(c=>`<tr data-admin-search-row data-search-text="${esc(((c.manhwa?.title||"Manhwa")+" "+c.chapter_number+" "+(c.title||"")).toLowerCase())}"><td>${esc(c.manhwa?.title||"Manhwa")}</td><td>${esc(c.chapter_number)}</td><td>${esc(c.title||"-")}</td><td><button class="btn small" data-chapter-edit="${esc(c.id)}" data-number="${esc(c.chapter_number)}" data-title="${esc(c.title||"")}">Edit</button> <button class="btn small" data-chapter-delete="${esc(c.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada chapter.</td></tr>'}</tbody></table></div></section>`;
-  await loadAdminChapterOptions();$("#refreshAdmin").onclick=()=>admin();$("#adminManhwaForm").onsubmit=saveAdminManhwa;$("#adminChapterForm").onsubmit=saveAdminChapter;$("#adminPagesForm").onsubmit=uploadAdminPages;const pagePicker=$("#adminPageFiles");if(pagePicker){const refreshPageFilePreview=()=>{const files=Array.from(pagePicker.files||[]);const info=$("#pageFileInfo"),preview=$("#uploadPreview");if(!info)return;if(!files.length){info.textContent="Belum ada gambar dipilih. Jika baru kembali dari galeri, coba tunggu sebentar atau pilih ulang.";if(preview)preview.innerHTML="";return;}info.textContent=`${files.length} gambar dipilih · ${(files.reduce((n,f)=>n+(Number(f.size)||0),0)/1024/1024).toFixed(1)} MB total`;if(preview)preview.innerHTML=files.map((f,i)=>`<div class="upload-file"><span class="upload-index">${i+1}</span><span class="upload-name">${esc(f.name||("Gambar "+(i+1)))}</span><span class="upload-size">${((f.size||0)/1024/1024).toFixed(1)} MB</span></div>`).join("");};pagePicker.addEventListener("input",refreshPageFilePreview);pagePicker.addEventListener("change",refreshPageFilePreview);pagePicker.addEventListener("cancel",()=>{const info=$("#pageFileInfo");if(info)info.textContent="Pemilihan dibatalkan. Kamu bisa memilih gambar lagi.";});window.addEventListener("focus",()=>setTimeout(refreshPageFilePreview,350),{passive:true});document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(refreshPageFilePreview,350);});}
+  await loadAdminChapterOptions();$("#refreshAdmin").onclick=()=>admin();$("#adminManhwaForm").onsubmit=saveAdminManhwa;$("#adminChapterForm").onsubmit=saveAdminChapter;$("#adminPagesForm").onsubmit=uploadAdminPages;const pagePicker=$("#adminPageFiles");if(pagePicker){pagePicker.addEventListener("change",()=>{const files=Array.from(pagePicker.files||[]);$("#pageFileInfo").textContent=files.length?`${files.length} gambar dipilih · ${(files.reduce((n,f)=>n+f.size,0)/1024/1024).toFixed(1)} MB total`:"Belum ada gambar dipilih.";const preview=$("#uploadPreview");if(preview)preview.innerHTML=files.map((f,i)=>`<div class="upload-file"><span class="upload-index">${i+1}</span><span class="upload-name">${esc(f.name)}</span><span class="upload-size">${(f.size/1024/1024).toFixed(1)} MB</span></div>`).join("");});pagePicker.addEventListener("cancel",()=>{$("#pageFileInfo").textContent="Pemilihan dibatalkan. Kamu bisa memilih gambar lagi.";});}
   const adminSearch=$("#adminGlobalSearch");
   if(adminSearch)adminSearch.addEventListener("input",()=>{const q=adminSearch.value.trim().toLowerCase();document.querySelectorAll("[data-admin-search-row]").forEach(row=>{row.hidden=!String(row.dataset.searchText||"").includes(q)});});
   main.querySelectorAll("[data-admin-jump]").forEach(btn=>btn.addEventListener("click",()=>{const target=main.querySelector("#"+btn.dataset.adminJump);if(target){target.scrollIntoView({behavior:"smooth",block:"center"});const field=target.querySelector("input,select,textarea");if(field)field.focus({preventScroll:true});}}));
@@ -645,7 +641,7 @@ async function uploadAdminPages(e){
   if(!chapterId)throw new Error("Pilih chapter terlebih dahulu.");
   if(!files.length)throw new Error("Pilih minimal satu gambar.");
   if(files.length>50)throw new Error("Maksimal 50 gambar dalam satu kali upload.");
-  const invalid=files.find(f=>!imageMimeType(f));
+  const invalid=files.find(f=>!["image/jpeg","image/png","image/webp"].includes(f.type));
   if(invalid)throw new Error(`Format ${invalid.name} tidak didukung. Gunakan JPG, PNG, atau WEBP.`);
   const oversized=files.find(f=>f.size>15*1024*1024);
   if(oversized)throw new Error(`${oversized.name} lebih besar dari 15 MB.`);
@@ -689,7 +685,7 @@ async function deleteAdminManhwa(id){
 function addModal(id){let m=mangas.find(x=>x.id===id);showModal(`<div class="modal-head"><h2>${m?"Edit Manhwa":"Tambah Manhwa"}</h2><button class="iconbtn" data-close>✕</button></div><form class="form" id="animeForm"><label>Judul<input class="field" name="title" required value="${esc(m?.title||"")}" placeholder="Judul manhwa"></label><label>Genre<input class="field" name="genre" value="${esc(m?.genre.join(", ")||"Action, Fantasy")}" placeholder="Action, Fantasy"></label><label>Status<select class="field" name="status"><option ${m?.status==="Ongoing"?"selected":""}>Ongoing</option><option ${m?.status==="Completed"?"selected":""}>Completed</option></select></label><label>Jumlah chapter<input class="field" name="chapters" type="number" min="1" value="${m?.chapters||1}"></label><label>Deskripsi<textarea class="field" name="desc">${esc(m?.desc||"")}</textarea></label><button class="btn primary">Simpan</button></form>`);$("#animeForm").onsubmit=e=>{e.preventDefault();let f=new FormData(e.target),obj={id:m?.id||Date.now(),title:f.get("title"),genre:f.get("genre").split(",").map(x=>x.trim()).filter(Boolean),status:f.get("status"),chapters:+f.get("chapters"),desc:f.get("desc"),rating:m?.rating||"9.0",colors:m?.colors||["#6d50a8","#18243c"]};if(m)mangas=mangas.map(x=>x.id===m.id?obj:x);else mangas.unshift(obj);save();closeModal();admin();toast("Data demo berhasil disimpan.")}}
 function authModal(){
  if(!db){toast("Supabase belum terhubung. Periksa supabase.js.");return}
- showModal(`<div class="modal-head"><h2>Selamat datang</h2><button class="iconbtn" data-close>✕</button></div><div class="tabs"><button class="btn primary" id="tabLogin">Masuk</button><button class="btn" id="tabReg">Daftar</button></div><form class="form" id="authForm"><label id="authNameWrap" class="hidden">Nama<input class="field" name="name" id="authName" placeholder="Nama kamu"></label><label>Email<input class="field" name="email" type="email" required placeholder="nama@email.com" autocomplete="email"></label><label>Password<input class="field" name="password" type="password" required minlength="8" placeholder="Minimal 8 karakter" autocomplete="current-password"></label><button class="btn primary" id="authSubmit">Masuk</button></form><p id="authMessage" class="meta" aria-live="polite">Gunakan email dan password akun Supabase kamu.</p>`);
+ showModal(`<div class="modal-head"><h2>Selamat datang</h2><button class="iconbtn" data-close>✕</button></div><div class="tabs"><button class="btn primary" id="tabLogin">Masuk</button><button class="btn" id="tabReg">Daftar</button></div><form class="form" id="authForm"><label id="authNameWrap" class="hidden">Nama<input class="field" name="name" id="authName" placeholder="Nama kamu"></label><label>Email<input class="field" name="email" type="email" required placeholder="nama@email.com" autocomplete="email"></label><label>Password<input class="field" name="password" type="password" required minlength="8" placeholder="Minimal 8 karakter" autocomplete="current-password"></label><button class="btn primary" id="authSubmit">Masuk</button><button class="btn" type="button" id="resendConfirm">Kirim ulang email konfirmasi</button></form><p id="authMessage" class="meta" aria-live="polite">Gunakan email dan password akun Supabase kamu.</p>`);
  let mode="login";
  const nameWrap=$("#authNameWrap");
  function setMode(x){mode=x;nameWrap.classList.toggle("hidden",x==="login");$("#authName").required=x==="register";$("#tabLogin").classList.toggle("primary",x==="login");$("#tabReg").classList.toggle("primary",x==="register");$("#authSubmit").textContent=x==="login"?"Masuk":"Buat akun";$("#authMessage").textContent=x==="login"?"Masuk menggunakan akun Supabase.":"Daftar menggunakan email aktif. Konfirmasi email mungkin diperlukan."}
@@ -709,7 +705,7 @@ function authModal(){
    if(mode==="login"){
     result=await db.auth.signInWithPassword({email:mail,password:pass});
    }else{
-    result=await db.auth.signUp({email:mail,password:pass,options:{data:{username:String(f.get("name")||"").trim()}}});
+    result=await db.auth.signUp({email:mail,password:pass,options:{data:{username:String(f.get("name")||"").trim()},emailRedirectTo:window.location.origin+window.location.pathname}});
    }
    if(result.error)throw result.error;
    if(mode==="register"&&!result.data.session){
@@ -723,6 +719,19 @@ function authModal(){
    }
   }catch(error){message.textContent="Gagal: "+(error.message||"Terjadi kesalahan.");}
   finally{submit.disabled=false;}
+ };
+ $("#resendConfirm").onclick=async()=>{
+  const mail=String($("#authForm").elements.email.value||"").trim();
+  const message=$("#authMessage");
+  const button=$("#resendConfirm");
+  if(!mail){message.textContent="Masukkan email akun yang didaftarkan terlebih dahulu.";return;}
+  button.disabled=true;message.textContent="Mengirim ulang email konfirmasi...";
+  try{
+   const {error}=await db.auth.resend({type:"signup",email:mail,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+   if(error)throw error;
+   message.textContent="Permintaan kirim ulang berhasil. Periksa Inbox, Spam, dan folder Promosi.";
+  }catch(error){message.textContent="Gagal mengirim ulang: "+(error.message||"Terjadi kesalahan.");}
+  finally{button.disabled=false;}
  };
 }
 function mapAuthUser(authUser){
