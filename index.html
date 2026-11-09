@@ -705,7 +705,7 @@ function authModal(){
    if(mode==="login"){
     result=await db.auth.signInWithPassword({email:mail,password:pass});
    }else{
-    result=await db.auth.signUp({email:mail,password:pass,options:{data:{username:String(f.get("name")||"").trim()},emailRedirectTo:window.location.origin+window.location.pathname}});
+    result=await db.auth.signUp({email:mail,password:pass,options:{data:{username:String(f.get("name")||"").trim()},emailRedirectTo:"https://manhwa-hub.github.io/manhwa-hub./"}});
    }
    if(result.error)throw result.error;
    if(mode==="register"&&!result.data.session){
@@ -727,7 +727,7 @@ function authModal(){
   if(!mail){message.textContent="Masukkan email akun yang didaftarkan terlebih dahulu.";return;}
   button.disabled=true;message.textContent="Mengirim ulang email konfirmasi...";
   try{
-   const {error}=await db.auth.resend({type:"signup",email:mail,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+   const {error}=await db.auth.resend({type:"signup",email:mail,options:{emailRedirectTo:"https://manhwa-hub.github.io/manhwa-hub./"}});
    if(error)throw error;
    message.textContent="Permintaan kirim ulang berhasil. Periksa Inbox, Spam, dan folder Promosi.";
   }catch(error){message.textContent="Gagal mengirim ulang: "+(error.message||"Terjadi kesalahan.");}
