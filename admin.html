@@ -718,7 +718,7 @@ async function runMultiSourceScraper(e){
    body:{query,sources:[source]}
   });
   if(error)throw error;
-  if(!data?.success)throw new Error(data?.message||"Scraper gagal dijalankan.");
+  if(!data?.success){console.error("Scraper response:",data);const detail=data?.message||data?.error||data?.details||JSON.stringify(data)||"Respons kosong dari Edge Function.";throw new Error("Scraper gagal: "+detail)}
   msg.textContent=`Selesai. Ditemukan: ${data.total??data.found??0}. Baru disimpan: ${data.saved??0}. Duplikat dilewati: ${data.skipped??0}. Semua data baru berstatus pending.`;
   toast("Scraper selesai. Periksa antrean admin.");
   await loadScrapedQueue();
