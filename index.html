@@ -692,7 +692,8 @@ async function runBotScraper(e){
   const total=Number(data.total||0),saved=Number(data.saved||0),skipped=Number(data.skipped||0);
   const details=Array.isArray(data.errors)&&data.errors.length?" Catatan: "+data.errors.map(x=>x.message||x.error||"Kesalahan sumber").join("; "):"";
   msg.textContent="Selesai. Ditemukan: "+total+". Baru disimpan: "+saved+". Duplikat dilewati: "+skipped+". Semua data baru berstatus pending."+details;
-  toast("Bot Scraper selesai. Periksa antrean review.");
+  await loadScraperReviewQueue();
+  toast("Bot Scraper selesai. Antrean pemeriksaan sudah diperbarui.");
  }catch(error){
   console.error("Bot Scraper:",error);
   msg.textContent="Gagal: "+(error.message||"Periksa Edge Function multi-source-scraper.");
