@@ -639,10 +639,10 @@ async function admin(){
   <div class="admin-tools"><div class="admin-search"><span>⌕</span><input class="field" id="adminGlobalSearch" type="search" placeholder="Cari judul manhwa atau chapter..."></div><div class="admin-jumps"><button class="btn small" data-admin-jump="adminManhwaForm">＋ Manhwa</button><button class="btn small" data-admin-jump="adminChapterForm">＋ Chapter</button><button class="btn small" data-admin-jump="adminPagesForm">↑ Upload halaman</button></div></div>
   <section class="section admin-panel" id="admin-scraper-panel">
    <div class="section-head"><div><h2>Bot Scraper Manhwa</h2><p class="meta">Cari metadata dan kirim hasilnya ke antrean pemeriksaan.</p></div><span class="pill">RatuManhwa aktif</span></div>
-   <div class="notice" style="margin:12px 0">Saat ini sumber yang sudah tersambung adalah RatuManhwa. Komiku dan Shinigami belum diaktifkan. Metadata yang ditemukan akan masuk berstatus pending; pastikan hak penggunaan cover dan sinopsis sebelum menerbitkannya.</div>
+   <div class="notice" style="margin:12px 0">Sumber yang sudah diaktifkan: RatuManhwa dan Komiku. Shinigami belum diaktifkan. Metadata yang ditemukan akan masuk berstatus pending; pastikan hak penggunaan cover dan sinopsis sebelum menerbitkannya.</div>
    <form id="multiSourceScraperForm" class="form">
-    <label>Kata kunci judul (kosongkan untuk mengambil daftar terbaru)<input class="field" name="query" maxlength="150" placeholder="Contoh: Solo Leveling"></label>
-    <label>Sumber data<select class="field" name="source"><option value="ratumanhwa">RatuManhwa</option></select></label>
+    <label>Kata kunci judul (wajib untuk Komiku; opsional untuk RatuManhwa)<input class="field" name="query" maxlength="150" placeholder="Contoh: Solo Leveling"></label>
+    <label>Sumber data<select class="field" name="source"><option value="ratumanhwa">RatuManhwa</option><option value="komiku">Komiku</option></select></label>
     <button class="btn primary" type="submit" id="multiSourceScraperSubmit">Cari dan simpan ke antrean</button>
     <p class="meta" id="multiSourceScraperMsg" aria-live="polite">Hasil akan disimpan ke antrean admin dengan status pending.</p>
    </form>
