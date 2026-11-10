@@ -59,7 +59,15 @@ async function invokeAdminFunction(name,body){
  if(sessionError)throw sessionError;
  const token=data?.session?.access_token;
  if(!token)throw new Error("Sesi admin tidak memiliki access token. Silakan login ulang.");
- return await db.functions.invoke(name,{body,headers:{Authorization:"Bearer "+token}});
+ const result=await db.functions.invoke(name,{body,headers:{Authorization:"Bearer "+token}});
+ if(result.error){
+  const response=result.error.context;
+  let detail="";
+  if(response&&typeof response.clone==="function"){try{detail=await response.clone().text()}catch(_){}}
+  const status=response?.status?("HTTP "+response.status+" "+(response.statusText||"")):"";
+  throw new Error(["Edge Function "+name,status,detail].filter(Boolean).join(" — ")||result.error.message);
+ }
+ return result;
 }
 async function pendingCount(){const {count,error}=await db.from("scraped_manhwa").select("*",{count:"exact",head:true}).eq("status","pending");if(error){console.warn(error);return 0}return count||0}
 async function project(){
