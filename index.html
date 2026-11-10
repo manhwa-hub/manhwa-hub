@@ -263,6 +263,64 @@ button:focus-visible,[data-open]:focus-visible,input:focus-visible,select:focus-
 #pagesMsg{line-height:1.6}
 #adminPagesForm button:disabled{opacity:.65;cursor:wait}
 
+ 
+/* KOMIKZEN-INSPIRED ADMIN WORKSPACE */
+body.admin-mode{background:#0b0c0f;color:#f2f2f4}
+body.admin-mode .topbar,body.admin-mode .footer{display:none}
+body.admin-mode .container{max-width:none;width:100%;padding:0;margin:0}
+body.admin-mode .zen-admin-shell{min-height:100vh;display:grid;grid-template-columns:190px minmax(0,1fr);background:#0b0c0f}
+body.admin-mode .zen-sidebar{position:sticky;top:0;height:100vh;padding:22px 13px;border-right:1px solid #24252b;background:#101114;display:flex;flex-direction:column;gap:24px}
+body.admin-mode .zen-brand{font-size:19px;font-weight:850;letter-spacing:-.7px;padding:0 7px 10px}
+body.admin-mode .zen-brand span{color:#f06b8d}
+body.admin-mode .zen-side-label{font-size:9px;letter-spacing:1.5px;color:#696b75;padding:0 10px}
+body.admin-mode .zen-side-nav{display:grid;gap:6px}
+body.admin-mode .zen-side-nav button{width:100%;text-align:left;background:transparent;border:1px solid transparent;color:#a5a6af;padding:11px 10px;border-radius:9px;font-size:12px;font-weight:650}
+body.admin-mode .zen-side-nav button:hover,body.admin-mode .zen-side-nav button.active{background:rgba(226,76,113,.13);border-color:rgba(226,76,113,.12);color:#f17b98}
+body.admin-mode .zen-side-bottom{margin-top:auto;display:grid;gap:8px}
+body.admin-mode .zen-side-bottom button{background:none;border:0;color:#a5a6af;text-align:left;padding:9px;font-size:11px}
+body.admin-mode .zen-admin-main{min-width:0;padding:0 26px 40px}
+body.admin-mode .zen-topline{height:58px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #22232a;margin:0 -26px 25px;padding:0 26px;color:#999ba5;font-size:11px}
+body.admin-mode .zen-topline strong{color:#f1f1f3;font-weight:650}
+body.admin-mode .zen-topline .zen-status{color:#e77a96;letter-spacing:1px;font-size:9px}
+body.admin-mode .page-title{font-size:25px;letter-spacing:-.8px;margin:0 0 5px}
+body.admin-mode .sub{color:#898b96;font-size:12px;margin:0 0 20px}
+body.admin-mode .eyebrow{display:none}
+body.admin-mode .section,body.admin-mode .admin-tools{background:#131418;border:1px solid #292a31;border-radius:12px;box-shadow:none}
+body.admin-mode .admin-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:0;overflow:hidden;margin:0 0 17px}
+body.admin-mode .admin-stats .stat{background:transparent;border:0;border-right:1px solid #292a31;border-radius:0;padding:16px 18px}
+body.admin-mode .admin-stats .stat:last-child{border:0}
+body.admin-mode .admin-stats .stat b{font-size:24px;font-weight:750}
+body.admin-mode .admin-stats .stat span{font-size:10px;color:#92939d}
+body.admin-mode .admin-tools{padding:13px;margin-bottom:20px;display:flex;align-items:center;gap:12px}
+body.admin-mode .admin-search .field,body.admin-mode .field{background:#101115;border:1px solid #30313a;color:#f4f4f6;border-radius:8px}
+body.admin-mode .admin-jumps .btn,body.admin-mode .btn{background:#17181d;border:1px solid #30313a;color:#e6e6e9;border-radius:8px}
+body.admin-mode .btn.primary{background:#a93658;border-color:#a93658;color:white}
+body.admin-mode .admin-panel{padding:19px;margin:0 0 17px;scroll-margin-top:16px}
+body.admin-mode .admin-panel h2{font-size:15px}
+body.admin-mode .admin-panel p,body.admin-mode .meta{color:#92939d}
+body.admin-mode .pill{background:rgba(226,76,113,.13);color:#ed819b;border:1px solid rgba(226,76,113,.2)}
+body.admin-mode table{border-collapse:collapse}
+body.admin-mode th{color:#999ba5;font-size:10px;text-transform:uppercase;letter-spacing:.7px}
+body.admin-mode td{font-size:12px;border-top:1px solid #282930}
+body.admin-mode .admin-panel .section{background:#101115}
+body.admin-mode .admin-panel .form{max-width:850px}
+body.admin-mode input:focus,body.admin-mode select:focus,body.admin-mode textarea:focus{outline:2px solid rgba(226,76,113,.35);border-color:#d75d7d}
+@media(max-width:760px){
+ body.admin-mode .zen-admin-shell{grid-template-columns:1fr}
+ body.admin-mode .zen-sidebar{position:relative;height:auto;padding:12px;border-right:0;border-bottom:1px solid #24252b;gap:10px}
+ body.admin-mode .zen-brand{padding:0 5px;font-size:17px}
+ body.admin-mode .zen-side-label,body.admin-mode .zen-side-bottom{display:none}
+ body.admin-mode .zen-side-nav{display:flex;overflow-x:auto;gap:5px}
+ body.admin-mode .zen-side-nav button{white-space:nowrap;width:auto;padding:9px 11px}
+ body.admin-mode .zen-admin-main{padding:0 13px 28px}
+ body.admin-mode .zen-topline{height:45px;margin:0 -13px 19px;padding:0 13px}
+ body.admin-mode .page-title{font-size:22px}
+ body.admin-mode .admin-stats .stat{padding:13px 10px}
+ body.admin-mode .admin-stats .stat b{font-size:20px}
+ body.admin-mode .admin-stats .stat span{font-size:9px}
+ body.admin-mode .admin-tools{align-items:stretch}
+}
+
 </style>
 </head>
 <body>
@@ -369,6 +427,7 @@ function cover(m){return `<div class="cover" data-cover-title="${esc(m.title)}" 
 function card(m){return `<article class="card" data-open="${m.id}">${cover(m)}<h3>${esc(m.title)}</h3><div class="meta">★ ${m.rating||"9.0"} · ${m.status}</div></article>`}
 function setPage(p){currentPage=p;$("#nav").classList.remove("open");document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));render()}
 function render(){
+ document.body.classList.toggle("admin-mode",currentPage==="admin");
  if(currentPage==="home") home();
  else if(currentPage==="catalog") catalog();
  else if(currentPage==="bookmark") listing("bookmark");
@@ -606,8 +665,8 @@ async function admin(){
   const {data:rows,error}=await db.from("manhwa").select("id,title,slug,status,chapters(count)");if(error)throw error;
   const list=rows||[],total=list.reduce((n,m)=>n+(m.chapters?.[0]?.count||0),0);
   const {data:chapterRows,error:chapterListError}=await db.from("chapters").select("id,manhwa_id,chapter_number,title,manhwa(title)").order("chapter_number",{ascending:false});if(chapterListError)throw chapterListError;
-  main.innerHTML=`<div class="eyebrow">ADMINISTRATOR</div><h1 class="page-title">Admin Dashboard</h1><p class="sub">Kelola katalog, chapter, dan gambar bacaan.</p>
-  <div class="stats section admin-stats"><div class="stat"><b>${list.length}</b><span>Total manhwa</span></div><div class="stat"><b>${total}</b><span>Total chapter</span></div><div class="stat"><b>Aktif</b><span>Akses admin</span></div></div>
+  main.innerHTML=`<div class="zen-admin-shell"><aside class="zen-sidebar"><div class="zen-brand">MANHWA<span>HUB</span></div><div class="zen-side-label">WORKSPACE</div><nav class="zen-side-nav"><button class="active" data-admin-jump="admin-overview">▦ Dashboard</button><button data-admin-jump="admin-bot-scraper">◈ Project</button><button data-admin-jump="admin-manhwa-list">▤ Master Data</button><button data-admin-jump="admin-scraper-review">◩ Editor Admin</button></nav><div class="zen-side-bottom"><button data-go="profile">◎ Akun saya</button><button data-go="home">↗ Lihat situs publik</button></div></aside><div class="zen-admin-main"><div class="zen-topline"><span>Workspace　›　<strong>Editor Admin</strong></span><span class="zen-status">● CLOUD WORKSPACE　　◉</span></div><div class="eyebrow">ADMINISTRATOR</div><h1 class="page-title">Dashboard</h1><p class="sub">Ringkasan dan pengelolaan Manhwa Hub.</p>
+  <div class="stats section admin-stats" id="admin-overview"><div class="stat"><b>${list.length}</b><span>Total manhwa</span></div><div class="stat"><b>${total}</b><span>Total chapter</span></div><div class="stat"><b>Aktif</b><span>Akses admin</span></div></div>
   <div class="admin-tools"><div class="admin-search"><span>⌕</span><input class="field" id="adminGlobalSearch" type="search" placeholder="Cari judul manhwa atau chapter..."></div><div class="admin-jumps"><button class="btn small" data-admin-jump="admin-bot-scraper">🤖 Bot Scraper</button><button class="btn small" data-admin-jump="admin-scraper-review">✓ Pemeriksaan Scraper</button><button class="btn small" data-admin-jump="admin-komiku-import">⇩ Impor Komiku</button><button class="btn small" data-admin-jump="adminManhwaForm">＋ Manhwa</button><button class="btn small" data-admin-jump="adminChapterForm">＋ Chapter</button><button class="btn small" data-admin-jump="adminPagesForm">↑ Upload halaman</button></div></div>
   <section class="section admin-panel" id="admin-bot-scraper">
    <div class="section-head"><div><h2>Bot Scraper Multi Sumber</h2><p class="meta">Cari judul dari sumber scraper dan masukkan hasil baru ke antrean review.</p></div><span class="pill">Bot Scraper</span></div>
@@ -638,7 +697,7 @@ async function admin(){
   <section class="section admin-panel" id="admin-add-chapter"><h2>Tambah Chapter</h2><form id="adminChapterForm" class="form"><label>Pilih manhwa<select class="field" name="manhwa_id" required>${list.map(m=>`<option value="${esc(m.id)}">${esc(m.title)}</option>`).join("")}</select></label><label>Nomor chapter<input class="field" name="chapter_number" type="number" min="0" step="0.01" required></label><label>Judul chapter<input class="field" name="chapter_title" placeholder="Awakening"></label><button class="btn primary">Buat Chapter</button><p class="meta" id="chapterMsg"></p></form></section>
   <section class="section admin-panel" id="admin-upload-pages"><h2>Upload Halaman Chapter</h2><form id="adminPagesForm" class="form"><label>Pilih chapter<select class="field" name="chapter_id" id="adminChapterSelect" required><option value="">Memuat...</option></select></label><label>Gambar halaman (bisa pilih banyak sekaligus)<input class="field" id="adminPageFiles" name="pages" type="file" accept="image/jpeg,image/png,image/webp" multiple required></label><p class="meta" id="pageFileInfo">Belum ada gambar dipilih. Pilih beberapa gambar sekaligus; urutan nama file menentukan urutan halaman.</p><div class="upload-preview" id="uploadPreview" aria-live="polite"></div><p class="meta">File JPG, PNG, atau WEBP. Maksimal 50 gambar per batch dan 15 MB per gambar. Nomor halaman dilanjutkan otomatis setelah halaman terakhir.</p><button class="btn primary">Unggah Halaman</button><p class="meta" id="pagesMsg"></p></form></section>
   <section class="section admin-panel" id="admin-manhwa-list"><div class="section-head"><h2>Daftar Manhwa</h2><button class="btn small" id="refreshAdmin">Muat ulang</button></div><div class="table-wrap"><table><thead><tr><th>Judul</th><th>Status</th><th>Chapter</th><th>Aksi</th></tr></thead><tbody>${list.map(m=>`<tr data-admin-search-row data-search-text="${esc((m.title+" "+m.slug+" "+m.status).toLowerCase())}"><td>${esc(m.title)}</td><td>${esc(m.status)}</td><td>${m.chapters?.[0]?.count||0}</td><td><button class="btn small" data-admin-edit="${esc(m.id)}">Edit</button> <button class="btn small" data-admin-delete="${esc(m.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada manhwa.</td></tr>'}</tbody></table></div></section>
-  <section class="section admin-panel" id="admin-chapter-list"><h2>Kelola Chapter</h2><div class="table-wrap"><table><thead><tr><th>Manhwa</th><th>Chapter</th><th>Judul</th><th>Aksi</th></tr></thead><tbody>${(chapterRows||[]).map(c=>`<tr data-admin-search-row data-search-text="${esc(((c.manhwa?.title||"Manhwa")+" "+c.chapter_number+" "+(c.title||"")).toLowerCase())}"><td>${esc(c.manhwa?.title||"Manhwa")}</td><td>${esc(c.chapter_number)}</td><td>${esc(c.title||"-")}</td><td><button class="btn small" data-chapter-edit="${esc(c.id)}" data-number="${esc(c.chapter_number)}" data-title="${esc(c.title||"")}">Edit</button> <button class="btn small" data-chapter-delete="${esc(c.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada chapter.</td></tr>'}</tbody></table></div></section>`;
+  <section class="section admin-panel" id="admin-chapter-list"><h2>Kelola Chapter</h2><div class="table-wrap"><table><thead><tr><th>Manhwa</th><th>Chapter</th><th>Judul</th><th>Aksi</th></tr></thead><tbody>${(chapterRows||[]).map(c=>`<tr data-admin-search-row data-search-text="${esc(((c.manhwa?.title||"Manhwa")+" "+c.chapter_number+" "+(c.title||"")).toLowerCase())}"><td>${esc(c.manhwa?.title||"Manhwa")}</td><td>${esc(c.chapter_number)}</td><td>${esc(c.title||"-")}</td><td><button class="btn small" data-chapter-edit="${esc(c.id)}" data-number="${esc(c.chapter_number)}" data-title="${esc(c.title||"")}">Edit</button> <button class="btn small" data-chapter-delete="${esc(c.id)}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="4">Belum ada chapter.</td></tr>'}</tbody></table></div></section></div></div>`;
   await loadAdminChapterOptions();$("#refreshAdmin").onclick=()=>admin();$("#refreshScraperReview").onclick=loadScraperReviewQueue;$("#botScraperForm").onsubmit=runBotScraper;$("#komikuImportForm").onsubmit=runKomikuChapterImport;$("#adminManhwaForm").onsubmit=saveAdminManhwa;$("#adminChapterForm").onsubmit=saveAdminChapter;$("#adminPagesForm").onsubmit=uploadAdminPages;const pagePicker=$("#adminPageFiles");if(pagePicker){pagePicker.addEventListener("change",()=>{const files=Array.from(pagePicker.files||[]);$("#pageFileInfo").textContent=files.length?`${files.length} gambar dipilih · ${(files.reduce((n,f)=>n+f.size,0)/1024/1024).toFixed(1)} MB total`:"Belum ada gambar dipilih.";const preview=$("#uploadPreview");if(preview)preview.innerHTML=files.map((f,i)=>`<div class="upload-file"><span class="upload-index">${i+1}</span><span class="upload-name">${esc(f.name)}</span><span class="upload-size">${(f.size/1024/1024).toFixed(1)} MB</span></div>`).join("");});pagePicker.addEventListener("cancel",()=>{$("#pageFileInfo").textContent="Pemilihan dibatalkan. Kamu bisa memilih gambar lagi.";});}
   const adminSearch=$("#adminGlobalSearch");
   if(adminSearch)adminSearch.addEventListener("input",()=>{const q=adminSearch.value.trim().toLowerCase();document.querySelectorAll("[data-admin-search-row]").forEach(row=>{row.hidden=!String(row.dataset.searchText||"").includes(q)});});
