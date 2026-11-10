@@ -342,6 +342,45 @@ body.admin-mode #admin-scraper-review #scraperReviewList>.grid>.section:last-chi
  body.admin-mode .zen-side-nav .zen-nav-group{grid-column:1/-1}
 }
 
+
+/* REFERENCE-STYLE DASHBOARD */
+body.admin-mode .zen-dashboard{display:grid;gap:17px}
+body.admin-mode .zen-metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+body.admin-mode .zen-metric{position:relative;min-width:0;padding:18px;border:1px solid #292a31;border-radius:12px;background:#131418;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+body.admin-mode .zen-metric>span{font-size:11px;color:#a0a1aa}
+body.admin-mode .zen-metric>b{font-size:27px;line-height:1.15;letter-spacing:-.7px;color:#f4f4f6}
+body.admin-mode .zen-metric>small{font-size:10px;color:#777984}
+body.admin-mode .zen-metric>i{position:absolute;right:14px;top:14px;width:29px;height:29px;display:grid;place-items:center;border-radius:8px;background:rgba(230,109,140,.12);color:#e66d8c;font-style:normal}
+body.admin-mode .zen-dash-panel{min-width:0;padding:18px;border:1px solid #292a31;border-radius:12px;background:#131418}
+body.admin-mode .zen-panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+body.admin-mode .zen-panel-head h2{font-size:14px;margin:0 0 5px}
+body.admin-mode .zen-panel-head p{font-size:10px;color:#858792;margin:0}
+body.admin-mode .zen-muted{font-size:10px;color:#858792}
+body.admin-mode .zen-chart-total{display:flex;align-items:baseline;gap:8px;margin:6px 0 0}
+body.admin-mode .zen-chart-total b{font-size:22px}
+body.admin-mode .zen-chart-total span{font-size:10px;color:#858792}
+body.admin-mode .zen-line-chart{display:block;width:100%;height:auto;overflow:visible;margin-top:6px}
+body.admin-mode .zen-dash-columns{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+body.admin-mode .zen-top-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #292a31}
+body.admin-mode .zen-top-row:last-child{border-bottom:0}
+body.admin-mode .zen-rank{width:20px;color:#8b8d97;font-size:11px}
+body.admin-mode .zen-top-info{flex:1;min-width:0;display:grid;gap:7px}
+body.admin-mode .zen-top-info>b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.admin-mode .zen-top-info>span{height:4px;background:#282930;border-radius:9px;overflow:hidden}
+body.admin-mode .zen-top-info>span>i{display:block;height:100%;background:#e66d8c;border-radius:9px}
+body.admin-mode .zen-top-row>strong{font-size:11px}
+body.admin-mode .zen-status-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #292a31;font-size:11px;color:#a3a4ad}
+body.admin-mode .zen-status-row:last-child{border:0}
+body.admin-mode .zen-status-row b{color:#f3f3f5}
+body.admin-mode .zen-attention-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #292a31}
+body.admin-mode .zen-attention-dot{width:7px;height:7px;border-radius:50%;background:#e66d8c;flex:none}
+body.admin-mode .zen-attention-row>div{display:grid;gap:4px;min-width:0}
+body.admin-mode .zen-attention-row b{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.admin-mode .zen-attention-row small{font-size:10px;color:#858792}
+body.admin-mode .zen-empty{padding:20px 0;text-align:center;color:#858792;font-size:11px}
+@media(max-width:900px){body.admin-mode .zen-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){body.admin-mode .zen-dash-columns{grid-template-columns:1fr}body.admin-mode .zen-metric{padding:14px}body.admin-mode .zen-metric>b{font-size:23px}body.admin-mode .zen-dash-panel{padding:14px}}
+
 </style>
 </head>
 <body>
@@ -686,8 +725,63 @@ async function admin(){
   const {data:rows,error}=await db.from("manhwa").select("id,title,slug,status,chapters(count)");if(error)throw error;
   const list=rows||[],total=list.reduce((n,m)=>n+(m.chapters?.[0]?.count||0),0);
   const {data:chapterRows,error:chapterListError}=await db.from("chapters").select("id,manhwa_id,chapter_number,title,manhwa(title)").order("chapter_number",{ascending:false});if(chapterListError)throw chapterListError;
+  let readingRows=[];
+  try{
+   const {data:reads,error:readsError}=await db.from("reading_history").select("chapter_id,updated_at,chapters(manhwa_id,manhwa(title))").order("updated_at",{ascending:false}).limit(1000);
+   if(readsError)throw readsError;
+   readingRows=reads||[];
+  }catch(readError){console.warn("Statistik aktivitas baca tidak tersedia:",readError.message);}
+  let pendingRows=[];
+  try{
+   const {data:reviewData,error:reviewError}=await db.functions.invoke("review-scraped-manhwa",{body:{action:"list"}});
+   if(!reviewError&&reviewData?.success&&Array.isArray(reviewData.data))pendingRows=reviewData.data;
+  }catch(reviewError){console.warn("Statistik antrean review tidak tersedia:",reviewError.message);}
+  const today=new Date();today.setHours(0,0,0,0);
+  const dailyReads=Array.from({length:7},(_,i)=>{
+   const day=new Date(today);day.setDate(today.getDate()-6+i);
+   const count=readingRows.filter(r=>{const d=new Date(r.updated_at);return !Number.isNaN(d.getTime())&&d.toDateString()===day.toDateString()}).length;
+   return {day,count,label:String(day.getDate()).padStart(2,"0")+"/"+String(day.getMonth()+1).padStart(2,"0")};
+  });
+  const maxDaily=Math.max(1,...dailyReads.map(x=>x.count));
+  const chartPoints=dailyReads.map((x,i)=>`${24+i*92},${132-(x.count/maxDaily)*100}`).join(" ");
+  const topReadMap=new Map();
+  readingRows.forEach(r=>{const m=r.chapters?.manhwa;if(!m?.title)return;topReadMap.set(m.title,(topReadMap.get(m.title)||0)+1);});
+  const topReads=[...topReadMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const publishedCount=list.filter(m=>String(m.status).toLowerCase()==="published").length;
   main.innerHTML=`<div class="zen-admin-shell"><aside class="zen-sidebar"><div class="zen-brand">MANHWA<span>HUB</span></div><div class="zen-side-label">WORKSPACE</div><nav class="zen-side-nav"><button class="active" data-admin-category="dashboard" data-admin-title="Dashboard">▦ Dashboard</button><button data-admin-category="project" data-admin-title="Project">◈ Project</button><button data-admin-category="master" data-admin-title="Master Data">▤ Master Data</button><button data-admin-category="editor" data-admin-title="Editor Admin">◩ Editor Admin</button></nav><div class="zen-side-bottom"><button data-go="profile">◎ Akun saya</button><button data-go="home">↗ Lihat situs publik</button></div></aside><div class="zen-admin-main"><div class="zen-topline"><span>Workspace　›　<strong id="zenBreadcrumb">Dashboard</strong></span><span class="zen-status">● CLOUD WORKSPACE　　◉</span></div><div class="eyebrow">ADMINISTRATOR</div><h1 class="page-title" id="zenPageTitle">Dashboard</h1><p class="sub">Ringkasan dan pengelolaan Manhwa Hub.</p>
-  <div class="stats section admin-stats" id="admin-overview"><div class="stat"><b>${list.length}</b><span>Total manhwa</span></div><div class="stat"><b>${total}</b><span>Total chapter</span></div><div class="stat"><b>Aktif</b><span>Akses admin</span></div></div>
+  <div id="admin-overview" class="zen-dashboard">
+   <div class="zen-metric-grid">
+    <article class="zen-metric"><span>Total manhwa</span><b>${list.length.toLocaleString("id-ID")}</b><small>${publishedCount} berstatus published</small><i>▣</i></article>
+    <article class="zen-metric"><span>Total chapter</span><b>${total.toLocaleString("id-ID")}</b><small>Chapter tersimpan</small><i>▦</i></article>
+    <article class="zen-metric"><span>Aktivitas baca</span><b>${readingRows.length.toLocaleString("id-ID")}</b><small>Riwayat baca tersimpan</small><i>◉</i></article>
+    <article class="zen-metric"><span>Menunggu review</span><b>${pendingRows.length.toLocaleString("id-ID")}</b><small>Hasil scraper pending</small><i>◷</i></article>
+   </div>
+   <section class="zen-dash-panel zen-chart-panel">
+    <div class="zen-panel-head"><div><h2>Aktivitas membaca</h2><p>Jumlah pembaruan riwayat baca selama 7 hari terakhir</p></div><span class="zen-muted">7 hari terakhir</span></div>
+    <div class="zen-chart-total"><b>${dailyReads.reduce((n,x)=>n+x.count,0).toLocaleString("id-ID")}</b><span>aktivitas baca</span></div>
+    <svg class="zen-line-chart" viewBox="0 0 620 170" role="img" aria-label="Grafik aktivitas membaca tujuh hari terakhir">
+     <defs><linearGradient id="zenChartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#e66d8c" stop-opacity=".28"/><stop offset="100%" stop-color="#e66d8c" stop-opacity="0"/></linearGradient></defs>
+     <path d="M24 132 H576 M24 82 H576 M24 32 H576" stroke="#292a31" stroke-dasharray="3 5" fill="none"/>
+     <polygon points="24,132 ${chartPoints} 576,132" fill="url(#zenChartFill)"/>
+     <polyline points="${chartPoints}" fill="none" stroke="#e66d8c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+     ${dailyReads.map((x,i)=>{const y=132-(x.count/maxDaily)*100;return `<circle cx="${24+i*92}" cy="${y}" r="4" fill="#f08aa4"/><text x="${24+i*92}" y="158" text-anchor="middle" fill="#858792" font-size="10">${x.label}</text>`;}).join("")}
+    </svg>
+   </section>
+   <div class="zen-dash-columns">
+    <section class="zen-dash-panel"><div class="zen-panel-head"><div><h2>Top 5 manhwa</h2><p>Berdasarkan aktivitas baca</p></div></div>
+     ${topReads.length?topReads.map(([title,count],i)=>`<div class="zen-top-row"><span class="zen-rank">${i+1}</span><div class="zen-top-info"><b>${esc(title)}</b><span><i style="width:${Math.max(4,count/Math.max(1,topReads[0][1])*100)}%"></i></span></div><strong>${count}</strong></div>`).join(""):'<div class="zen-empty">Belum ada riwayat baca untuk membuat peringkat.</div>'}
+    </section>
+    <section class="zen-dash-panel"><div class="zen-panel-head"><div><h2>Koleksi Manhwa</h2><p>Status koleksi di database</p></div></div>
+     <div class="zen-status-row"><span>Total koleksi</span><b>${list.length}</b></div>
+     <div class="zen-status-row"><span>Published</span><b>${publishedCount}</b></div>
+     <div class="zen-status-row"><span>Belum published</span><b>${Math.max(0,list.length-publishedCount)}</b></div>
+     <div class="zen-status-row"><span>Chapter tersimpan</span><b>${total}</b></div>
+    </section>
+   </div>
+   <section class="zen-dash-panel"><div class="zen-panel-head"><div><h2>Perlu perhatian</h2><p>Antrean scraper yang membutuhkan pemeriksaan</p></div><button class="btn small" type="button" data-admin-category="editor" data-admin-title="Editor Admin">Buka Editor Admin ↗</button></div>
+    ${pendingRows.length?pendingRows.slice(0,5).map(item=>`<div class="zen-attention-row"><span class="zen-attention-dot"></span><div><b>${esc(item.title||"Tanpa judul")}</b><small>${esc(item.source_id||"Sumber tidak diketahui")} · Menunggu review</small></div></div>`).join(""):'<div class="zen-empty">Tidak ada hasil scraper yang menunggu pemeriksaan.</div>'}
+   </section>
+  </div>
   
   <section class="section admin-panel" id="admin-bot-scraper">
    <div class="section-head"><div><h2>Bot Scraper Multi Sumber</h2><p class="meta">Cari judul dari sumber scraper dan masukkan hasil baru ke antrean review.</p></div><span class="pill">Bot Scraper</span></div>
