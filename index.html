@@ -381,6 +381,29 @@ body.admin-mode .zen-empty{padding:20px 0;text-align:center;color:#858792;font-s
 @media(max-width:900px){body.admin-mode .zen-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){body.admin-mode .zen-dash-columns{grid-template-columns:1fr}body.admin-mode .zen-metric{padding:14px}body.admin-mode .zen-metric>b{font-size:23px}body.admin-mode .zen-dash-panel{padding:14px}}
 
+
+/* PROFESSIONAL CMS NAVIGATION AND SINGLE-PANEL WORKSPACE */
+body.admin-mode .zen-subnav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 20px;padding:10px;background:#111217;border:1px solid #292a31;border-radius:12px}
+body.admin-mode .zen-subnav[hidden]{display:none}
+body.admin-mode .zen-subnav button{border:1px solid #30313a;background:#18191f;color:#aeb0ba;border-radius:8px;padding:9px 13px;font-size:11px;font-weight:650;cursor:pointer}
+body.admin-mode .zen-subnav button:hover,body.admin-mode .zen-subnav button.active{background:rgba(230,109,140,.14);border-color:rgba(230,109,140,.4);color:#f18ba4}
+body.admin-mode .admin-panel{display:none}
+body.admin-mode .admin-panel.zen-active{display:block;margin:0;padding:22px;background:#131418;border:1px solid #292a31;border-radius:14px}
+body.admin-mode .admin-panel.zen-active .form{max-width:760px}
+body.admin-mode .admin-panel.zen-active table{min-width:650px}
+body.admin-mode .zen-dashboard{max-width:1400px}
+body.admin-mode .zen-dash-panel{box-shadow:0 8px 24px rgba(0,0,0,.12)}
+@media(max-width:760px){
+ body.admin-mode .zen-admin-shell{grid-template-columns:1fr}
+ body.admin-mode .zen-sidebar{position:relative;height:auto;padding:14px;border-right:0;border-bottom:1px solid #24252b;gap:12px}
+ body.admin-mode .zen-side-bottom{display:flex;flex-wrap:wrap;margin-top:0}
+ body.admin-mode .zen-admin-main{padding:0 14px 28px}
+ body.admin-mode .zen-topline{margin:0 -14px 20px;padding:0 14px}
+ body.admin-mode .zen-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ body.admin-mode .zen-dash-columns{grid-template-columns:1fr}
+ body.admin-mode .zen-subnav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ body.admin-mode .zen-subnav button{width:100%}
+}
 </style>
 </head>
 <body>
@@ -749,6 +772,7 @@ async function admin(){
   const topReads=[...topReadMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
   const publishedCount=list.filter(m=>String(m.status).toLowerCase()==="published").length;
   main.innerHTML=`<div class="zen-admin-shell"><aside class="zen-sidebar"><div class="zen-brand">MANHWA<span>HUB</span></div><div class="zen-side-label">WORKSPACE</div><nav class="zen-side-nav"><button class="active" data-admin-category="dashboard" data-admin-title="Dashboard">▦ Dashboard</button><button data-admin-category="project" data-admin-title="Project">◈ Project</button><button data-admin-category="master" data-admin-title="Master Data">▤ Master Data</button><button data-admin-category="editor" data-admin-title="Editor Admin">◩ Editor Admin</button></nav><div class="zen-side-bottom"><button data-go="profile">◎ Akun saya</button><button data-go="home">↗ Lihat situs publik</button></div></aside><div class="zen-admin-main"><div class="zen-topline"><span>Workspace　›　<strong id="zenBreadcrumb">Dashboard</strong></span><span class="zen-status">● CLOUD WORKSPACE　　◉</span></div><div class="eyebrow">ADMINISTRATOR</div><h1 class="page-title" id="zenPageTitle">Dashboard</h1><p class="sub">Ringkasan dan pengelolaan Manhwa Hub.</p>
+  <div class="zen-subnav" id="zenSubnav" hidden></div>
   <div id="admin-overview" class="zen-dashboard">
    <div class="zen-metric-grid">
     <article class="zen-metric"><span>Total manhwa</span><b>${list.length.toLocaleString("id-ID")}</b><small>${publishedCount} berstatus published</small><i>▣</i></article>
@@ -824,12 +848,39 @@ async function admin(){
    master:["admin-manhwa-list","admin-add-manhwa","admin-add-chapter","admin-upload-pages","admin-chapter-list"],
    editor:["admin-scraper-review"]
   };
-  function showAdminCategory(category,title){
-   const visible=new Set(groups[category]||groups.dashboard);
-   adminSections.forEach(section=>section.classList.toggle("zen-active",visible.has(section.id)));
-   const stats=$("#admin-overview");if(stats)stats.classList.toggle("zen-hidden",category!=="dashboard");
+  const subnavItems={
+   project:[["admin-bot-scraper","Bot Scraper"],["admin-komiku-import","Impor Komiku"]],
+   master:[["admin-manhwa-list","Daftar Manhwa"],["admin-add-manhwa","Tambah Manhwa"],["admin-chapter-list","Kelola Chapter"],["admin-add-chapter","Tambah Chapter"],["admin-upload-pages","Upload Halaman"]],
+   editor:[["admin-scraper-review","Pemeriksaan Scraper"]]
+  };
+  function showAdminPanel(panelId,category,title){
+   adminSections.forEach(section=>section.classList.toggle("zen-active",section.id===panelId));
+   const stats=$("#admin-overview");if(stats)stats.classList.add("zen-hidden");
    const pageTitle=$("#zenPageTitle"),crumb=$("#zenBreadcrumb");
    if(pageTitle)pageTitle.textContent=title;if(crumb)crumb.textContent=title;
+   const nav=$("#zenSubnav");
+   if(nav)nav.querySelectorAll("[data-admin-panel]").forEach(button=>button.classList.toggle("active",button.dataset.adminPanel===panelId));
+   main.querySelectorAll("[data-admin-category]").forEach(button=>button.classList.toggle("active",button.dataset.adminCategory===category));
+   window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function showAdminCategory(category,title){
+   const nav=$("#zenSubnav");
+   const stats=$("#admin-overview");
+   adminSections.forEach(section=>section.classList.remove("zen-active"));
+   if(category==="dashboard"){
+    if(nav){nav.hidden=true;nav.innerHTML="";}
+    if(stats)stats.classList.remove("zen-hidden");
+    const pageTitle=$("#zenPageTitle"),crumb=$("#zenBreadcrumb");
+    if(pageTitle)pageTitle.textContent=title;if(crumb)crumb.textContent=title;
+   }else{
+    const items=subnavItems[category]||[];
+    if(nav){
+     nav.hidden=false;
+     nav.innerHTML=items.map(([id,label])=>`<button type="button" data-admin-panel="${id}">${label}</button>`).join("");
+     nav.querySelectorAll("[data-admin-panel]").forEach(button=>button.addEventListener("click",()=>showAdminPanel(button.dataset.adminPanel,category,button.textContent.trim())));
+    }
+    showAdminPanel(items[0]?.[0],category,items[0]?.[1]||title);
+   }
    main.querySelectorAll("[data-admin-category]").forEach(button=>button.classList.toggle("active",button.dataset.adminCategory===category));
    window.scrollTo({top:0,behavior:"smooth"});
   }
