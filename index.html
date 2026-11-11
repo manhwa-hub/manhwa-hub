@@ -1071,12 +1071,45 @@ $("#loginBtn .login-short").classList.remove("hidden");
 render();
 updateAuthUI();
 refreshAuth();
+
+/* Sinkronisasi CMS -> web publik; refresh saat tab aktif menjadi fallback realtime. */
+let publicSyncTimer=null;
+let publicSyncPending=new Set();
+async function applyPublicSync(){
+ const kinds=new Set(publicSyncPending);publicSyncPending.clear();
+ const tasks=[];
+ if(kinds.has("settings"))tasks.push(loadSiteSettings());
+ if(kinds.has("manhwa")||kinds.has("chapters"))tasks.push(loadManhwaFromDatabase());
+ await Promise.all(tasks);
+ if(kinds.has("manhwa")||kinds.has("chapters")){
+  if(["home","catalog","detail","reader"].includes(currentPage))render();
+ }else if(kinds.has("settings")&&currentPage==="home")render();
+ if(kinds.has("chapter_pages")&&currentPage==="reader")render();
+}
+function schedulePublicSync(kind){
+ publicSyncPending.add(kind);clearTimeout(publicSyncTimer);
+ publicSyncTimer=setTimeout(()=>{applyPublicSync().catch(error=>console.warn("Sinkronisasi publik gagal:",error));},250);
+}
+function refreshPublicOnReturn(){
+ if(document.visibilityState!=="visible")return;
+ ["settings","manhwa","chapters"].forEach(schedulePublicSync);
+ if(currentPage==="reader")schedulePublicSync("chapter_pages");
+}
 if(db){
  db.auth.onAuthStateChange((_event,session)=>{
-  user=mapAuthUser(session?.user);
-  updateAuthUI();
+  user=mapAuthUser(session?.user);updateAuthUI();
   if(currentPage==="profile")profile();
  });
+ try{
+  db.channel("manhwa-hub-public-sync")
+   .on("postgres_changes",{event:"*",schema:"public",table:"manhwa"},()=>schedulePublicSync("manhwa"))
+   .on("postgres_changes",{event:"*",schema:"public",table:"chapters"},()=>schedulePublicSync("chapters"))
+   .on("postgres_changes",{event:"*",schema:"public",table:"chapter_pages"},()=>schedulePublicSync("chapter_pages"))
+   .on("postgres_changes",{event:"*",schema:"public",table:"site_settings"},()=>schedulePublicSync("settings"))
+   .subscribe(status=>{if(status!=="SUBSCRIBED")console.warn("Realtime publik:",status)});
+ }catch(error){console.warn("Realtime publik tidak tersedia; refresh saat tab aktif tetap digunakan.",error)}
+ document.addEventListener("visibilitychange",refreshPublicOnReturn);
+ window.addEventListener("focus",refreshPublicOnReturn);
 }
 Promise.all([loadSiteSettings(),loadManhwaFromDatabase()]).then(()=>render());
 })();
