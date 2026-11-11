@@ -417,7 +417,7 @@ body.admin-mode .zen-dash-panel{box-shadow:0 8px 24px rgba(0,0,0,.12)}
   <div class="top-actions"><button class="iconbtn" id="themeBtn" title="Ganti tema">☼</button><button class="btn primary small" id="loginBtn"><span class="login-label">Masuk / Daftar</span><span class="login-short">Masuk</span></button></div>
 </header>
 <main class="container" id="main"></main>
-<footer class="footer">© 2026 MANHWA HUB · Prototype tampilan · Konten contoh untuk demonstrasi</footer>
+<footer class="footer">© 2026 MANHWA HUB · Semua hak cipta dilindungi.</footer>
 </div>
 <div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
@@ -537,10 +537,10 @@ function render(){
 }
 function home(){
 const s=siteSettings.homepage||{};
-main.innerHTML=\`<section class="hero"><div class="hero-content"><div class="eyebrow">DUNIA CERITA TANPA BATAS</div><h1>\${esc(s.hero_title||"Baca Cerita. Jelajahi Dunia.")}</h1><p>\${esc(s.hero_subtitle||"Temukan manhwa, manhua, dan manga favoritmu. Ikuti chapter terbaru dan simpan bacaanmu di satu tempat.")}</p><button class="btn primary" data-go="catalog">Jelajahi Katalog →</button></div></section>
-<section class="section"><div class="section-head"><div><h2>🔥 \${esc(s.featured_heading||"Sedang Populer")}</h2><p>Pilihan bacaan yang banyak disukai</p></div><button class="linkbtn" data-go="catalog">Lihat semua →</button></div><div class="grid">\${mangas.slice(0,6).map(card).join("")}</div></section>
-<section class="section"><div class="section-head"><div><h2>✨ \${esc(s.updates_heading||"Update Terbaru")}</h2><p>Temukan cerita untuk menemani harimu</p></div></div><div class="grid">\${mangas.slice().reverse().slice(0,6).map(card).join("")}</div></section>
-<section class="section"><div class="notice">Selamat datang di MANHWA HUB. Katalog dimuat dari database Supabase. Konten final menggunakan materi yang dimiliki atau berizin.</div></section>\`
+main.innerHTML=`<section class="hero"><div class="hero-content"><div class="eyebrow">DUNIA CERITA TANPA BATAS</div><h1>${esc(s.hero_title||"Baca Cerita. Jelajahi Dunia.")}</h1><p>${esc(s.hero_subtitle||"Temukan manhwa, manhua, dan manga favoritmu. Ikuti chapter terbaru dan simpan bacaanmu di satu tempat.")}</p><button class="btn primary" data-go="catalog">Jelajahi Katalog →</button></div></section>
+<section class="section"><div class="section-head"><div><h2>🔥 ${esc(s.featured_heading||"Sedang Populer")}</h2><p>Pilihan bacaan yang banyak disukai</p></div><button class="linkbtn" data-go="catalog">Lihat semua →</button></div><div class="grid">${mangas.slice(0,6).map(card).join("")}</div></section>
+<section class="section"><div class="section-head"><div><h2>✨ ${esc(s.updates_heading||"Update Terbaru")}</h2><p>Temukan cerita untuk menemani harimu</p></div></div><div class="grid">${mangas.slice().reverse().slice(0,6).map(card).join("")}</div></section>
+<section class="section"><div class="notice">Selamat datang di MANHWA HUB. Katalog dimuat dari database Supabase. Konten final menggunakan materi yang dimiliki atau berizin.</div></section>`
 }
 function catalog(){main.innerHTML=`<div><div class="eyebrow">JELAJAHI KOLEKSI</div><h1 class="page-title">Katalog Manhwa</h1><p class="sub">Cari cerita favoritmu berdasarkan judul, genre, atau status.</p></div>
 <div class="toolbar"><input class="field search" id="search" placeholder="Cari judul manhwa..."><select class="field" id="genre"><option value="">Semua genre</option>${[...new Set(mangas.flatMap(m=>m.genre))].sort().map(g=>`<option>${esc(g)}</option>`).join("")}</select><select class="field" id="status"><option value="">Semua status</option><option>Ongoing</option><option>Completed</option></select><select class="field" id="sort"><option value="popular">Terpopuler</option><option value="az">Judul A-Z</option><option value="new">Terbaru</option></select></div><div class="grid" id="catalogGrid">${mangas.map(card).join("")}</div>`;["search","genre","status","sort"].forEach(id=>$("#"+id).addEventListener(id==="search"?"input":"change",filterCatalog))}
