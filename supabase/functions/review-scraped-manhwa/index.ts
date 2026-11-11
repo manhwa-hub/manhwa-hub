@@ -66,6 +66,57 @@ Deno.serve(async (req: Request) => {
       return json({ success: true, data: data || [], total: data?.length || 0 }, 200, origin);
     }
 
+    if (body.action === "list_chapters") {
+      const pageSize = 1000;
+      const allRows: unknown[] = [];
+      let offset = 0;
+      while (true) {
+        const { data, error } = await admin.from("scraped_chapters")
+          .select("id,manhwa_id,scraped_manhwa_id,title,chapter_number,source_id,source_url,source_updated_at,status,created_at,manhwa:manhwa_id(title),scraped_manhwa:scraped_manhwa_id(title)")
+          .eq("status", "pending").order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        allRows.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+        offset += pageSize;
+      }
+      return json({ success: true, data: allRows, total: allRows.length, returned: allRows.length, truncated: false }, 200, origin);
+    }
+
+    if (body.action === "review_chapter") {
+      const id = Number(body.id);
+      const status = body.status;
+      if (!Number.isSafeInteger(id) || id <= 0) return json({ success: false, message: "ID chapter tidak valid." }, 400, origin);
+      if (status !== "approved" && status !== "rejected") return json({ success: false, message: "Status review tidak valid." }, 400, origin);
+      const { data: item, error: itemError } = await admin.from("scraped_chapters")
+        .select("id,manhwa_id,title,chapter_number,source_url,status").eq("id", id).maybeSingle();
+      if (itemError) throw itemError;
+      if (!item) return json({ success: false, message: "Chapter antrean tidak ditemukan." }, 404, origin);
+      if (item.status !== "pending") return json({ success: false, message: "Chapter ini sudah pernah diperiksa." }, 409, origin);
+      if (status === "rejected") {
+        const { error } = await admin.from("scraped_chapters").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", id);
+        if (error) throw error;
+        return json({ success: true, message: "Chapter ditolak." }, 200, origin);
+      }
+      if (!item.manhwa_id) return json({ success: false, message: "Chapter belum terhubung ke Master Data. Setujui judul induknya terlebih dahulu." }, 409, origin);
+      const { data: duplicate, error: duplicateError } = await admin.from("chapters")
+        .select("id").eq("manhwa_id", item.manhwa_id).eq("chapter_number", item.chapter_number).limit(1).maybeSingle();
+      if (duplicateError) throw duplicateError;
+      let chapterId = duplicate?.id || null;
+      if (!chapterId) {
+        const { data: inserted, error: insertError } = await admin.from("chapters").insert({
+          manhwa_id: item.manhwa_id, chapter_number: item.chapter_number,
+          title: item.title || "", content_url: item.source_url || "",
+        }).select("id").single();
+        if (insertError) throw insertError;
+        chapterId = inserted.id;
+      }
+      const { error: updateError } = await admin.from("scraped_chapters")
+        .update({ status: "approved", manhwa_id: item.manhwa_id, updated_at: new Date().toISOString() }).eq("id", id);
+      if (updateError) return json({ success: false, message: "Chapter sudah dibuat/ditemukan, tetapi status antrean gagal diperbarui. Periksa sebelum mengulang.", chapter_id: chapterId }, 500, origin);
+      return json({ success: true, duplicate: !!duplicate, chapter_id: chapterId, message: duplicate ? "Chapter duplikat ditandai selesai tanpa membuat salinan." : "Chapter berhasil ditambahkan ke Master Data." }, 200, origin);
+    }
+
     if (body.action === "review") {
       const id = Number(body.id);
       const status = body.status;
@@ -92,6 +143,10 @@ Deno.serve(async (req: Request) => {
           status: "ongoing",
         }).select("id").single();
         if (insertError) throw insertError;
+        const { error: linkError } = await admin.from("scraped_chapters")
+          .update({ manhwa_id: inserted.id, updated_at: new Date().toISOString() })
+          .eq("scraped_manhwa_id", id).is("manhwa_id", null);
+        if (linkError) throw linkError;
         const { error: updateError } = await admin.from("scraped_manhwa")
           .update({ status: "approved", updated_at: new Date().toISOString() }).eq("id", id);
         if (updateError) {
