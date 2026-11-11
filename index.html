@@ -954,6 +954,7 @@ async function saveAdminChapter(e){
 async function uploadAdminPages(e){
  e.preventDefault();const form=e.currentTarget,msg=$("#pagesMsg"),picker=$("#adminPageFiles"),chapterId=$("#adminChapterSelect").value;
  const files=Array.from(picker?.files||[]);let success=0;
+ const submit=form.querySelector('button[type="submit"],button:not([type])');
  try{
   await requireAdmin();
   if(!chapterId)throw new Error("Pilih chapter terlebih dahulu.");
@@ -963,7 +964,6 @@ async function uploadAdminPages(e){
   if(invalid)throw new Error(`Format ${invalid.name} tidak didukung. Gunakan JPG, PNG, atau WEBP.`);
   const oversized=files.find(f=>f.size>8*1024*1024);
   if(oversized)throw new Error(`${oversized.name} lebih besar dari batas Cloudflare R2 8 MB per gambar.`);
-  const submit=form.querySelector('button[type="submit"],button:not([type])');
   if(submit){submit.disabled=true;submit.textContent="Mengunggah ke R2...";}
   for(let offset=0;offset<files.length;offset+=15){
    const batch=files.slice(offset,offset+15),payload=new FormData();
