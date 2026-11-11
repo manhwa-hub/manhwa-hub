@@ -202,10 +202,71 @@ async function invokeAdminFunction(name,body){
 }
 async function pendingCount(){const {count,error}=await db.from("scraped_manhwa").select("*",{count:"exact",head:true}).eq("status","pending");if(error){console.warn(error);return 0}return count||0}
 async function project(){
- content.innerHTML=head("PROJECT WORKSPACE","Project","Pengelolaan sumber data, proses scraping, import, dan pemeriksaan metadata.")+`<div class="grid"><article class="kpi"><div class="kpi-top">Scraper</div><strong>Multi-source</strong><small>Edge Function</small></article><article class="kpi"><div class="kpi-top">Review queue</div><strong id="projectPending">—</strong><small>Pending metadata</small></article><article class="kpi"><div class="kpi-top">Scheduler</div><strong>Terpisah</strong><small>Cron / Edge Function</small></article><article class="kpi"><div class="kpi-top">Source validation</div><strong>Manual</strong><small>Perlu health check</small></article></div><section class="panel"><div class="panelhead"><h2>Scraper import</h2><span class="tag">Existing integration</span></div><form id="scrapeForm" class="tabletools"><input class="field search" name="query" required placeholder="Cari judul manhwa…"><select class="field" name="source"><option value="ratumanhwa">RatuManhwa</option><option value="komiku">Komiku</option></select><button class="btn primary">Jalankan scraper</button></form><p id="scrapeMsg" class="statusline">Hasil akan masuk antrean pending, bukan langsung dipublikasikan.</p></section><section class="panel"><div class="panelhead"><h2>Scraper review queue</h2><button class="btn" id="reloadQueue">Muat ulang</button></div><div id="queue" class="empty">Memuat antrean…</div></section>`;
- $("#projectPending").textContent=fmt(await pendingCount());$("#scrapeForm").onsubmit=runScraper;$("#reloadQueue").onclick=loadQueue;await loadQueue();
+ content.innerHTML=head("PROJECT WORKSPACE","Project","Kelola scraper, scan katalog terbaru, dan periksa komik maupun chapter baru sebelum diterbitkan.")+`
+ <div class="grid">
+  <article class="kpi"><div class="kpi-top">Sumber scan</div><strong>RatuManhwa</strong><small>Live catalog API</small></article>
+  <article class="kpi"><div class="kpi-top">Review komik</div><strong id="projectPending">—</strong><small>Komik baru menunggu review</small></article>
+  <article class="kpi"><div class="kpi-top">Review chapter</div><strong id="chapterPendingCount">—</strong><small>Chapter baru menunggu review</small></article>
+  <article class="kpi"><div class="kpi-top">Mode</div><strong>Manual scan</strong><small>Tidak publish otomatis</small></article>
+ </div>
+ <section class="panel">
+  <div class="panelhead"><div><h2>Scan komik & chapter terbaru</h2><p class="sub">Cari judul baru di katalog sumber dan periksa chapter terbaru untuk komik yang sudah ada.</p></div><span class="tag">Live scan</span></div>
+  <button class="btn primary" id="scanUpdates">↻ Mulai Scan Update</button>
+  <p id="scanUpdateMsg" class="statusline">Scan hanya mengambil metadata dan memasukkan hasil baru ke antrean review. Tidak mengubah data yang sudah terbit.</p>
+  <div id="scanSummary" class="empty">Belum ada hasil scan pada sesi ini.</div>
+ </section>
+ <section class="panel"><div class="panelhead"><h2>Komik baru ditemukan</h2><button class="btn" id="reloadQueue">Muat ulang</button></div><div id="queue" class="empty">Memuat antrean…</div></section>
+ <section class="panel"><div class="panelhead"><h2>Chapter baru ditemukan</h2><button class="btn" id="reloadChapterQueue">Muat ulang</button></div><div id="chapterQueue" class="empty">Memuat antrean chapter…</div></section>
+ <section class="panel"><div class="panelhead"><h2>Scraper pencarian manual</h2><span class="tag">Multi-source</span></div>
+  <form id="scrapeForm" class="tabletools"><input class="field search" name="query" required placeholder="Cari judul manhwa…"><select class="field" name="source"><option value="ratumanhwa">RatuManhwa</option><option value="komiku">Komiku</option></select><button class="btn">Jalankan scraper</button></form>
+  <p id="scrapeMsg" class="statusline">Pencarian manual tetap tersedia untuk mencari judul tertentu.</p>
+ </section>`;
+ $("#projectPending").textContent=fmt(await pendingCount());
+ $("#scrapeForm").onsubmit=runScraper;
+ $("#reloadQueue").onclick=loadQueue;
+ $("#reloadChapterQueue").onclick=loadChapterQueue;
+ $("#scanUpdates").onclick=runUpdateScan;
+ await Promise.all([loadQueue(),loadChapterQueue()]);
 }
 async function runScraper(e){e.preventDefault();const f=new FormData(e.currentTarget),msg=$("#scrapeMsg"),btn=e.submitter;try{await guard();btn.disabled=true;msg.textContent="Scraper sedang berjalan…";const {data,error}=await invokeAdminFunction("multi-source-scraper",{query:String(f.get("query")).trim(),sources:[String(f.get("source"))]});if(error)throw error;if(!data?.success)throw new Error(data?.message||data?.error||"Scraper gagal");msg.textContent=`Selesai: ditemukan ${data.total??data.found??0}, disimpan ${data.saved??0}, duplikat ${data.skipped??0}. Periksa antrean sebelum publish.`;await loadQueue()}catch(err){msg.textContent="Gagal: "+err.message}finally{btn.disabled=false}}
+async function runUpdateScan(){
+ const btn=$("#scanUpdates"),msg=$("#scanUpdateMsg"),summary=$("#scanSummary");
+ try{
+  await guard();btn.disabled=true;btn.textContent="Memindai…";msg.textContent="Menghubungi katalog RatuManhwa dan membandingkan data…";summary.className="empty";summary.textContent="Scan sedang berjalan. Mohon tunggu…";
+  const {data,error}=await invokeAdminFunction("scan-updates",{});
+  if(error)throw error;if(!data?.success)throw new Error(data?.message||"Scan gagal.");
+  msg.textContent=data.message||"Scan selesai.";
+  summary.className="notice";
+  summary.innerHTML='<div class="grid"><div><b>'+fmt(data.scanned_comics||0)+'</b><small style="display:block">Judul diperiksa</small></div><div><b>'+fmt(data.new_comics||0)+'</b><small style="display:block">Komik baru</small></div><div><b>'+fmt(data.new_chapters||0)+'</b><small style="display:block">Chapter baru</small></div><div><b>'+fmt(data.checked_series||0)+'</b><small style="display:block">Seri dicek</small></div></div>'+
+   (data.warnings?.length?'<p style="margin:12px 0 0">Peringatan: '+data.warnings.map(w=>esc(w.title||"Sumber")+': '+esc(w.issue)).join(' • ')+'</p>':'')+
+   '<p style="margin:10px 0 0">Semua hasil baru masuk antrean pemeriksaan. Belum diterbitkan.</p>';
+  await Promise.all([loadQueue(),loadChapterQueue()]);
+ }catch(e){msg.textContent="Scan gagal: "+e.message;summary.className="notice";summary.textContent=e.message}
+ finally{btn.disabled=false;btn.textContent="↻ Mulai Scan Update"}
+}
+async function loadChapterQueue(){
+ const el=$("#chapterQueue");if(!el)return;
+ try{
+  const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"list_chapters"});
+  if(error)throw error;if(!data?.success)throw new Error(data?.message||"Gagal memuat antrean chapter.");
+  const rows=data.data||[];$("#chapterPendingCount").textContent=fmt(rows.length);
+  el.className=rows.length?"tablewrap":"empty";
+  el.innerHTML=rows.length?'<table><thead><tr><th>Komik</th><th>Chapter</th><th>Nomor</th><th>Sumber</th><th>Aksi</th></tr></thead><tbody>'+
+   rows.map(r=>'<tr><td><strong>'+esc(r.manhwa?.title||"Manhwa")+'</strong></td><td>'+esc(r.title||"—")+'</td><td>'+esc(r.chapter_number)+'</td><td>'+(r.source_url?'<a href="'+esc(r.source_url)+'" target="_blank" rel="noopener">Buka sumber</a>':'RatuManhwa')+'</td><td><button class="btn" data-chapter-review="'+r.id+'" data-status="approved">Setujui</button> <button class="btn" data-chapter-review="'+r.id+'" data-status="rejected">Tolak</button></td></tr>').join("")+
+   '</tbody></table>':"Tidak ada chapter baru yang menunggu review.";
+  el.querySelectorAll("[data-chapter-review]").forEach(b=>b.onclick=()=>reviewChapter(b));
+ }catch(e){el.className="notice";el.textContent="Antrean chapter gagal dimuat: "+e.message}
+}
+async function reviewChapter(b){
+ const id=b.dataset.chapterReview,status=b.dataset.status;
+ if(!confirm(status==="approved"?"Tambahkan chapter ini ke katalog?":"Tolak temuan chapter ini?"))return;
+ try{
+  b.disabled=true;
+  const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"review_chapter",id:Number(id),status});
+  if(error)throw error;if(!data?.success)throw new Error(data?.message||"Review chapter gagal.");
+  toast(data.message||"Review berhasil.");await loadChapterQueue();
+ }catch(e){toast("Gagal: "+e.message);b.disabled=false}
+}
 async function loadQueue(){const el=$("#queue");if(!el)return;try{const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"list"});if(error)throw error;if(!data?.success)throw new Error(data?.message||"Gagal memuat antrean");const rows=data.data||[];el.className=rows.length?"tablewrap":"empty";el.innerHTML=rows.length?`<table><thead><tr><th>Cover</th><th>Judul</th><th>Sumber</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows.map(r=>{const ok=typeof r.cover_url==="string"&&/^https?:\/\//i.test(r.cover_url);return "<tr><td><div class=\"review-cover\">"+(ok?"<img src=\""+coverProxyBase+encodeURIComponent(r.cover_url)+"\" alt=\"Cover\" loading=\"lazy\" referrerpolicy=\"no-referrer\" onerror=\"this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'\">":"")+"<span style=\"display:"+(ok?"none":"grid")+"\">No cover</span></div></td><td><strong>"+esc(r.title)+"</strong></td><td>"+esc(r.source_id||"—")+"</td><td><span class=\"tag warn\">Pending</span></td><td><button class=\"btn\" data-review=\""+esc(r.id)+"\" data-status=\"approved\">Setujui</button> <button class=\"btn\" data-review=\""+esc(r.id)+"\" data-status=\"rejected\">Tolak</button></td></tr>" }).join("")}</tbody></table>`:"Tidak ada item pending.";el.querySelectorAll("[data-review]").forEach(b=>b.onclick=()=>review(b))}catch(err){el.className="empty";el.textContent="Antrean tidak dapat dimuat: "+err.message}}
 async function review(b){const id=b.dataset.review,status=b.dataset.status;if(!confirm(status==="approved"?"Setujui metadata ini?":"Tolak metadata ini?"))return;try{b.disabled=true;const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"review",id:Number(id),status});if(error)throw error;if(!data?.success)throw new Error(data?.message||"Review gagal");toast(data.message||"Review berhasil");await loadQueue()}catch(e){toast("Gagal: "+e.message);b.disabled=false}}
 async function master(){
