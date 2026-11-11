@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
 
       if (status === "approved") {
         const normalizeTitle = (value: string) => value.toLowerCase().normalize("NFKD")
-          .replace(/[\\u0300-\\u036f]/g, "").replace(/^\\s*baca\\s+/i, "")
+          .replace(/[\u0300-\u036f]/g, "").replace(/^\s*baca\s+/i, "")
           .replace(/[^a-z0-9]+/g, " ").trim();
         const { data: existingRows, error: existingError } = await admin.from("manhwa").select("id,title,cover_url,synopsis");
         if (existingError) throw existingError;
