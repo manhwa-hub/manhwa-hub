@@ -622,7 +622,7 @@ async function media(){
  $("#linkImageUrls").onclick=async()=>{
   const id=chapter.value,output=$("#urlImportMessage"),raw=$("#mediaImageUrls").value;
   if(!id){output.textContent="Pilih chapter terlebih dahulu.";return}
-  const lines=raw.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+  const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   if(!lines.length){output.textContent="Masukkan minimal satu URL.";return}
   if(lines.length>100){output.textContent="Maksimal 100 URL dalam sekali proses.";return}
   const urls=[],invalid=[];
