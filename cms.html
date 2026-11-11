@@ -231,10 +231,15 @@ async function master(){
  </div>
  <div class="tabletools"><button class="btn primary" type="submit" id="saveManhwa">Simpan data</button><button class="btn" type="button" id="cancelManhwa">Batal</button><span class="statusline" id="manhwaFormMsg"></span></div>
  </form></section>
+ <section class="panel hidden" id="chapterManager"><div class="panelhead"><div><h2>Chapter: <span id="chapterManhwaTitle"></span></h2><p class="sub">Kelola daftar chapter untuk judul terpilih.</p></div><button class="btn" id="closeChapterManager">Tutup</button></div>
+ <form id="chapterForm" class="tabletools"><input type="hidden" name="id"><input type="hidden" name="manhwa_id"><input class="field" name="chapter_number" type="number" step="0.01" min="0" required placeholder="Nomor chapter"><input class="field search" name="title" placeholder="Judul chapter (opsional)"><input class="field search" name="content_url" type="url" placeholder="URL sumber (opsional)"><button class="btn primary" id="saveChapter">Tambah chapter</button></form>
+ <div class="statusline" id="chapterFormMsg"></div><div id="chapterRows" class="empty">Memuat chapter…</div></section>
  <section class="panel"><div class="panelhead"><h2>Katalog manhwa</h2><span class="tag">CRUD Supabase</span></div>
  <div class="tabletools"><input class="field search" id="masterSearch" placeholder="Cari judul atau slug…"><select class="field" id="masterStatus"><option value="">Semua status</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="hiatus">Hiatus</option></select><button class="btn" id="masterLoad">Cari</button></div>
  <div id="masterRows" class="empty">Memuat katalog…</div></section>`;
  $("#newManhwa").onclick=()=>openManhwaEditor();
+ $("#closeChapterManager").onclick=()=>$("#chapterManager").classList.add("hidden");
+ $("#chapterForm").onsubmit=saveChapter;
  $("#closeManhwaEditor").onclick=$("#cancelManhwa").onclick=()=>$("#manhwaEditor").classList.add("hidden");
  $("#manhwaForm").onsubmit=saveManhwa;
  $("#masterLoad").onclick=loadMasterRows;
@@ -278,6 +283,46 @@ async function saveManhwa(e){
  }catch(err){msg.textContent="Gagal menyimpan: "+err.message}
  finally{btn.disabled=false}
 }
+async function openChapterManager(manhwaId,title){
+ const form=$("#chapterForm");form.reset();form.elements.id.value="";form.elements.manhwa_id.value=manhwaId;
+ $("#chapterManhwaTitle").textContent=title;$("#chapterFormMsg").textContent="";
+ $("#chapterManager").classList.remove("hidden");await loadChapters(manhwaId);
+ $("#chapterManager").scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function loadChapters(manhwaId){
+ const el=$("#chapterRows");el.className="empty";el.textContent="Memuat chapter…";
+ try{
+  const {data,error}=await db.from("chapters").select("id,manhwa_id,chapter_number,title,content_url,created_at").eq("manhwa_id",manhwaId).order("chapter_number",{ascending:false});
+  if(error)throw error;
+  el.className=data.length?"tablewrap":"empty";
+  el.innerHTML=data.length?`<table><thead><tr><th>Chapter</th><th>Judul</th><th>URL</th><th>Aksi</th></tr></thead><tbody>${data.map(c=>`<tr><td>${esc(c.chapter_number)}</td><td>${esc(c.title||"—")}</td><td>${esc(c.content_url||"—")}</td><td><button class="btn" data-edit-chapter="${esc(c.id)}" data-number="${esc(c.chapter_number)}" data-chapter-title="${esc(c.title||"")}" data-url="${esc(c.content_url||"")}">Edit</button> <button class="btn" data-delete-chapter="${esc(c.id)}" data-number="${esc(c.chapter_number)}">Hapus</button></td></tr>`).join("")}</tbody></table>`:"Belum ada chapter untuk judul ini.";
+  el.querySelectorAll("[data-edit-chapter]").forEach(b=>b.onclick=()=>{const f=$("#chapterForm");f.elements.id.value=b.dataset.editChapter;f.elements.chapter_number.value=b.dataset.number;f.elements.title.value=b.dataset.chapterTitle;f.elements.content_url.value=b.dataset.url;$("#saveChapter").textContent="Simpan perubahan";$("#chapterFormMsg").textContent="Mode edit chapter";});
+  el.querySelectorAll("[data-delete-chapter]").forEach(b=>b.onclick=()=>deleteChapter(b.dataset.deleteChapter,b.dataset.number,manhwaId));
+ }catch(e){el.className="empty";el.textContent="Gagal memuat chapter: "+e.message}
+}
+async function saveChapter(e){
+ e.preventDefault();const f=e.currentTarget,fd=new FormData(f),btn=$("#saveChapter"),msg=$("#chapterFormMsg");
+ const id=String(fd.get("id")||"").trim(),manhwaId=String(fd.get("manhwa_id")||"").trim();
+ const number=Number(fd.get("chapter_number"));if(!Number.isFinite(number)||number<0){msg.textContent="Nomor chapter tidak valid.";return}
+ const url=String(fd.get("content_url")||"").trim();if(url){try{const u=new URL(url);if(u.protocol!=="https:")throw new Error()}catch{msg.textContent="URL chapter harus HTTPS.";return}}
+ const payload={manhwa_id:manhwaId,chapter_number:number,title:String(fd.get("title")||"").trim()||null,content_url:url||null};
+ btn.disabled=true;msg.textContent="Menyimpan…";
+ try{
+  const result=id?await db.from("chapters").update(payload).eq("id",id).select("id").single():await db.from("chapters").insert(payload).select("id").single();
+  if(result.error)throw result.error;
+  msg.textContent="Chapter berhasil disimpan.";toast("Chapter tersimpan.");f.reset();f.elements.manhwa_id.value=manhwaId;$("#saveChapter").textContent="Tambah chapter";await loadChapters(manhwaId);
+ }catch(err){msg.textContent="Gagal: "+err.message}
+ finally{btn.disabled=false}
+}
+async function deleteChapter(id,number,manhwaId){
+ if(!confirm("Hapus chapter "+number+"?"))return;
+ try{
+  const {count,error:ce}=await db.from("chapter_pages").select("id",{count:"exact",head:true}).eq("chapter_id",id);if(ce)throw ce;
+  if(count>0){toast("Chapter masih memiliki "+count+" halaman. Hapus halaman terlebih dahulu.");return}
+  const {error}=await db.from("chapters").delete().eq("id",id);if(error)throw error;
+  toast("Chapter dihapus.");await loadChapters(manhwaId);
+ }catch(e){toast("Gagal menghapus chapter: "+e.message)}
+}
 async function editManhwa(id){
  try{const {data,error}=await db.from("manhwa").select("*").eq("id",id).single();if(error)throw error;openManhwaEditor(data)}
  catch(e){toast("Data gagal dibuka: "+e.message)}
@@ -293,7 +338,8 @@ async function deleteManhwa(id,title){
  }catch(e){toast("Penghapusan gagal: "+e.message)}
 }
 
-async function loadMasterRows(){const el=$("#masterRows");if(!el)return;el.className="empty";el.textContent="Mencari…";try{let q=db.from("manhwa").select("id,title,slug,status,release_year,cover_url").order("title").limit(100);const term=$("#masterSearch").value.trim();if(term)q=q.or("title.ilike.%"+term+"%,slug.ilike.%"+term+"%");if($("#masterStatus").value)q=q.eq("status",$("#masterStatus").value);const {data,error}=await q;if(error)throw error;el.className=data.length?"tablewrap":"empty";el.innerHTML=data.length?`<table><thead><tr><th>Cover</th><th>Judul</th><th>Slug</th><th>Status</th><th>Tahun</th><th>Aksi</th></tr></thead><tbody>${data.map(m=>`<tr><td><div class="review-cover">${m.cover_url?`<img src="${esc(m.cover_url)}" alt="" loading="lazy" onerror="this.style.display='none'">`:"—"}</div></td><td><strong>${esc(m.title)}</strong></td><td>${esc(m.slug||"—")}</td><td><span class="tag">${esc(m.status||"—")}</span></td><td>${esc(m.release_year||"—")}</td><td><button class="btn" data-edit-manhwa="${esc(m.id)}">Edit</button> <button class="btn" data-delete-manhwa="${esc(m.id)}" data-title="${esc(m.title)}">Hapus</button></td></tr>`).join("")}</tbody></table>`:"Tidak ada data yang cocok.";el.querySelectorAll("[data-edit-manhwa]").forEach(b=>b.onclick=()=>editManhwa(b.dataset.editManhwa));el.querySelectorAll("[data-delete-manhwa]").forEach(b=>b.onclick=()=>deleteManhwa(b.dataset.deleteManhwa,b.dataset.title))}catch(e){el.className="empty";el.textContent="Query gagal: "+e.message}}
+async function loadMasterRows(){const el=$("#masterRows");if(!el)return;el.className="empty";el.textContent="Mencari…";try{let q=db.from("manhwa").select("id,title,slug,status,release_year,cover_url").order("title").limit(100);const term=$("#masterSearch").value.trim();if(term)q=q.or("title.ilike.%"+term+"%,slug.ilike.%"+term+"%");if($("#masterStatus").value)q=q.eq("status",$("#masterStatus").value);const {data,error}=await q;if(error)throw error;el.className=data.length?"tablewrap":"empty";el.innerHTML=data.length?`<table><thead><tr><th>Cover</th><th>Judul</th><th>Slug</th><th>Status</th><th>Tahun</th><th>Aksi</th></tr></thead><tbody>${data.map(m=>`<tr><td><div class="review-cover">${m.cover_url?`<img src="${esc(m.cover_url)}" alt="" loading="lazy" onerror="this.style.display='none'">`:"—"}</div></td><td><strong>${esc(m.title)}</strong></td><td>${esc(m.slug||"—")}</td><td><span class="tag">${esc(m.status||"—")}</span></td><td>${esc(m.release_year||"—")}</td><td><button class="btn" data-chapters-manhwa="${esc(m.id)}" data-title="${esc(m.title)}">Chapter</button> <button class="btn" data-edit-manhwa="${esc(m.id)}">Edit</button> <button class="btn" data-delete-manhwa="${esc(m.id)}" data-title="${esc(m.title)}">Hapus</button></td></tr>`).join("")}</tbody></table>`:"Tidak ada data yang cocok.";el.querySelectorAll("[data-chapters-manhwa]").forEach(b=>b.onclick=()=>openChapterManager(b.dataset.chaptersManhwa,b.dataset.title));
+el.querySelectorAll("[data-edit-manhwa]").forEach(b=>b.onclick=()=>editManhwa(b.dataset.editManhwa));el.querySelectorAll("[data-delete-manhwa]").forEach(b=>b.onclick=()=>deleteManhwa(b.dataset.deleteManhwa,b.dataset.title))}catch(e){el.className="empty";el.textContent="Query gagal: "+e.message}}
 async function editor(){
  content.innerHTML=head("ADMIN TOOLS","Editor Admin","Pengaturan editorial dan kontrol operasional. Akses mengikuti role administrator.")+`<div class="modules">${module("⚑","Moderation center","Antrian report, severity, assignment, appeals, dan immutable audit log.","Status modul","moderation")}${module("⌂","Homepage CMS","Hero banner, featured titles, section order, scheduling, preview, cache invalidation.","Status modul","homepage")}${module("⌕","SEO CMS","Metadata, canonical, redirect, sitemap, robots, structured data.","Status modul","seo")}${module("◷","Analytics","Event ingestion, views, playback funnel, retention, search, dan consent.","Status modul","analytics")}${module("♙","Roles & permissions","Role, permission matrix, MFA, session revocation, dan super-admin protection.","Status modul","access")}${module("▧","Media & storage","R2 integration, signed upload, MIME validation, lifecycle, usage analytics.","Status modul","media")}${module("▤","Audit & revisions","Riwayat perubahan, rollback, moderation notes, dan publication logs.","Status modul","audit")}${module("⌁","API & background jobs","Latency, error rate, job queue, retry, dan health monitoring.","Status modul","jobs")}</div><section class="panel"><div class="panelhead"><h2>Implementation status</h2><span class="tag warn">Belum semua terhubung</span></div><div class="empty">Modul ini ditampilkan sebagai ruang kerja. Fitur yang membutuhkan tabel, Edge Function, kebijakan RLS, dan integrasi provider baru tidak akan menampilkan data contoh atau mengaku aktif sebelum backend-nya tersedia.</div></section>`;
 }
