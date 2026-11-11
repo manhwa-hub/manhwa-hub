@@ -165,6 +165,7 @@ const coverProxyBase="https://lvbtxofhumoxvhwiqend.supabase.co/functions/v1/cove
 let active="dashboard",sessionUser=null;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(s){const t=$("#toast");t.textContent=s;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2300)}
+async function writeAudit(action,target,details={}){try{const {error}=await db.from("admin_audit_logs").insert({actor_id:sessionUser?.id||null,action,target,details});if(error)throw error;return true}catch(e){console.warn("Audit log gagal:",e.message);return false}}
 function fmt(n){return Number(n||0).toLocaleString("id-ID")}
 async function count(table){const {count,error}=await db.from(table).select("*",{count:"exact",head:true});if(error)throw error;return count||0}
 async function guard(){
@@ -278,6 +279,7 @@ async function saveManhwa(e){
  try{
   const result=id?await db.from("manhwa").update(payload).eq("id",id).select("id").single():await db.from("manhwa").insert(payload).select("id").single();
   if(result.error)throw result.error;
+  await writeAudit(id?"Memperbarui manhwa":"Menambahkan manhwa","manhwa:"+result.data.id,{title,slug:payload.slug});
   toast(id?"Data manhwa diperbarui.":"Manhwa baru berhasil ditambahkan.");
   $("#manhwaEditor").classList.add("hidden");await loadMasterRows();
  }catch(err){msg.textContent="Gagal menyimpan: "+err.message}
@@ -310,6 +312,7 @@ async function saveChapter(e){
  try{
   const result=id?await db.from("chapters").update(payload).eq("id",id).select("id").single():await db.from("chapters").insert(payload).select("id").single();
   if(result.error)throw result.error;
+  await writeAudit(id?"Memperbarui chapter":"Menambahkan chapter","chapter:"+result.data.id,{manhwa_id:manhwaId,chapter_number:number,title:payload.title});
   msg.textContent="Chapter berhasil disimpan.";toast("Chapter tersimpan.");f.reset();f.elements.manhwa_id.value=manhwaId;$("#saveChapter").textContent="Tambah chapter";await loadChapters(manhwaId);
  }catch(err){msg.textContent="Gagal: "+err.message}
  finally{btn.disabled=false}
@@ -320,6 +323,7 @@ async function deleteChapter(id,number,manhwaId){
   const {count,error:ce}=await db.from("chapter_pages").select("id",{count:"exact",head:true}).eq("chapter_id",id);if(ce)throw ce;
   if(count>0){toast("Chapter masih memiliki "+count+" halaman. Hapus halaman terlebih dahulu.");return}
   const {error}=await db.from("chapters").delete().eq("id",id);if(error)throw error;
+  await writeAudit("Menghapus chapter","chapter:"+id,{manhwa_id:manhwaId,chapter_number:number});
   toast("Chapter dihapus.");await loadChapters(manhwaId);
  }catch(e){toast("Gagal menghapus chapter: "+e.message)}
 }
@@ -334,6 +338,7 @@ async function deleteManhwa(id,title){
   if(countError)throw countError;
   if(count>0){toast("Tidak dapat menghapus: masih ada "+count+" chapter. Hapus atau pindahkan chapter terlebih dahulu.");return}
   const {error}=await db.from("manhwa").delete().eq("id",id);if(error)throw error;
+  await writeAudit("Menghapus manhwa","manhwa:"+id,{title});
   toast("Manhwa berhasil dihapus.");await loadMasterRows();
  }catch(e){toast("Penghapusan gagal: "+e.message)}
 }
