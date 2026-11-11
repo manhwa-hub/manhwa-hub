@@ -597,16 +597,16 @@ async function editor(){
 
 async function media(){
  const bucket="chapter-pages";
- content.innerHTML=head("MEDIA LIBRARY","Media Manager","Unggah dan kelola gambar chapter di Supabase Storage.")+`
- <section class="panel"><div class="panelhead"><h2>Upload gambar chapter</h2><span class="tag">Maksimal 15 MB/file</span></div>
+ content.innerHTML=head("MEDIA LIBRARY","Media Manager","Simpan URL gambar sumber ke Cloudflare R2, tautkan URL eksternal, dan kelola media lama di Supabase Storage.")+`
+ <section class="panel"><div class="panelhead"><h2>Upload gambar chapter</h2><span class="tag">Upload lokal: Supabase Storage</span></div>
  <form id="mediaUpload" class="form">
  <label>Pilih chapter<select class="field" id="mediaChapter" required><option value="">Memuat chapter…</option></select></label>
  <label>File gambar<input class="field" id="mediaFiles" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label>
- <button class="btn primary" id="uploadMedia">Unggah file ke Storage</button><span id="mediaMessage" class="statusline"></span>
+ <button class="btn primary" id="uploadMedia">Unggah file ke Supabase Storage</button><span id="mediaMessage" class="statusline"></span>
  <div class="divider"></div><h3>Tambahkan URL gambar chapter</h3>
- <p class="sub">Satu URL HTTPS per baris. URL akan ditautkan langsung ke pembaca; gambar eksternal belum disalin ke Storage atau R2.</p>
+ <p class="sub">Satu URL HTTPS per baris. URL akan ditautkan langsung ke pembaca; gambar eksternal akan disalin ke Cloudflare R2 jika memilih tombol unduh, atau ditautkan langsung jika memilih tombol tautkan.</p>
  <label>Daftar URL gambar<textarea class="field" id="mediaImageUrls" rows="5" placeholder="https://situs-sumber.com/gambar/halaman-1.jpg&#10;https://situs-sumber.com/gambar/halaman-2.jpg"></textarea></label>
- <div class="actions"><button class="btn primary" type="button" id="downloadImageUrls">Unduh &amp; simpan ke Storage</button><button class="btn" type="button" id="linkImageUrls">Tautkan URL eksternal saja</button></div><span id="urlImportMessage" class="statusline"></span></form></section>
+ <div class="actions"><button class="btn primary" type="button" id="downloadImageUrls">Unduh &amp; simpan ke Cloudflare R2</button><button class="btn" type="button" id="linkImageUrls">Tautkan URL eksternal saja</button></div><span id="urlImportMessage" class="statusline"></span></form></section>
  <section class="panel"><div class="panelhead"><h2>Media tersimpan</h2><button class="btn" id="refreshMedia">Muat ulang</button></div>
  <input class="field" id="mediaSearch" placeholder="Cari nama file…"><div id="mediaRows" class="empty">Memuat file…</div><div class="panelhead"><h2>Halaman terpasang di chapter</h2></div><div id="chapterPages" class="empty">Pilih chapter untuk melihat halaman.</div></section>`;
  const chapter=$("#mediaChapter"),files=$("#mediaFiles"),msg=$("#mediaMessage"),rows=$("#mediaRows"),pageRows=$("#chapterPages");
@@ -631,13 +631,13 @@ async function media(){
   try{
    for(let offset=0;offset<urls.length;offset+=15){
     output.textContent="Mengunduh gambar "+Math.min(offset+15,urls.length)+" dari "+urls.length+"…";
-    const {data,error}=await db.functions.invoke("import-chapter-images",{body:{chapter_id:id,urls:urls.slice(offset,offset+15)}});
+    const {data,error}=await invokeAdminFunction("r2-media",{chapter_id:id,urls:urls.slice(offset,offset+15)});
     if(error)throw error;
     if(!data)throw new Error("Server tidak mengembalikan hasil proses.");
     uploaded+=Number(data.uploaded||0);failed+=Number(data.failed||0);
     for(const item of data.results||[])if(item.status==="failed")errors.push(item.message||"Gagal mengunduh URL.");
    }
-   output.textContent=uploaded+" gambar berhasil disimpan ke Supabase Storage; "+failed+" gagal."+ (errors.length?" Detail: "+[...new Set(errors)].slice(0,3).join(" | "):"");
+   output.textContent=uploaded+" gambar berhasil disimpan ke Cloudflare R2; "+failed+" gagal."+ (errors.length?" Detail: "+[...new Set(errors)].slice(0,3).join(" | "):"");
    if(uploaded){$("#mediaImageUrls").value="";await load();await loadChapterPages()}
   }catch(error){output.textContent="Proses terhenti. "+uploaded+" gambar sudah tersimpan; kesalahan: "+error.message}
   finally{button.disabled=false}
