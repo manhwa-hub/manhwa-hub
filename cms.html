@@ -622,7 +622,7 @@ async function media(){
  $("#downloadImageUrls").onclick=async()=>{
   const id=chapter.value,output=$("#urlImportMessage"),raw=$("#mediaImageUrls").value;
   if(!id){output.textContent="Pilih chapter terlebih dahulu.";return}
-  const lines=raw.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+  const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const urls=[...new Set(lines)];
   if(!urls.length){output.textContent="Masukkan minimal satu URL gambar.";return}
   if(urls.length>100){output.textContent="Maksimal 100 URL dalam sekali proses.";return}
