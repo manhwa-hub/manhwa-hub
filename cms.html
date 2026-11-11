@@ -312,8 +312,28 @@ function renderChapterQueue(){
  $("#chapterReviewPrev").disabled=chapterReviewPage===0;$("#chapterReviewNext").disabled=chapterReviewPage>=pages-1;
  el.className=shown.length?"tablewrap":"empty";
  el.innerHTML=shown.length?'<table><thead><tr><th>Komik induk</th><th>Chapter</th><th>Sumber & tanggal</th><th>Referensi</th><th>Aksi</th></tr></thead><tbody>'+
- shown.map(r=>{const href=(()=>{try{const u=new URL(r.source_url);return /^https?:$/.test(u.protocol)?u.href:""}catch(_){return ""}})();const date=r.source_updated_at?new Date(r.source_updated_at).toLocaleDateString("id-ID"):(r.created_at?new Date(r.created_at).toLocaleDateString("id-ID"):"—");return '<tr><td><strong>'+esc(chapterReviewTitle(r))+'</strong></td><td><strong>Chapter '+esc(r.chapter_number??"—")+'</strong><div class="muted" style="font-size:12px">'+esc(r.title||"Tanpa judul")+'</div></td><td>'+esc(r.source_id||"—")+'<div class="muted" style="font-size:12px">'+esc(date)+'</div></td><td>'+(href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">Buka data chapter ↗</a>':'<span class="muted">Tidak ada URL sumber</span>')+'</td><td><button class="btn" data-chapter-review="'+esc(r.id)+'" data-status="approved">Setujui</button> <button class="btn" data-chapter-review="'+esc(r.id)+'" data-status="rejected">Tolak</button></td></tr>'}).join("")+'</tbody></table>':"Tidak ada chapter yang cocok dengan filter.";
+ shown.map(r=>{const href=(()=>{try{const u=new URL(r.source_url);return /^https?:$/.test(u.protocol)?u.href:""}catch(_){return ""}})();const date=r.source_updated_at?new Date(r.source_updated_at).toLocaleDateString("id-ID"):(r.created_at?new Date(r.created_at).toLocaleDateString("id-ID"):"—");return '<tr><td><strong>'+esc(chapterReviewTitle(r))+'</strong></td><td><strong>Chapter '+esc(r.chapter_number??"—")+'</strong><div class="muted" style="font-size:12px">'+esc(r.title||"Tanpa judul")+'</div></td><td>'+esc(r.source_id||"—")+'<div class="muted" style="font-size:12px">'+esc(date)+'</div></td><td>'+(href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">Buka data chapter ↗</a>':'<span class="muted">Tidak ada URL sumber</span>')+'</td><td><button class="btn" data-chapter-review="'+esc(r.id)+'" data-status="approved">Setujui</button> <button class="btn" data-chapter-review="'+esc(r.id)+'" data-status="rejected">Tolak</button>'+(r.manhwa_id&&r.scraped_manhwa?.status==="approved"&&String(r.scraped_manhwa?.source_id||"").startsWith("komiku:")? ' <button class="btn" data-chapter-import="'+esc(r.id)+'">Setujui + impor R2</button>':'')+'</td></tr>'}).join("")+'</tbody></table>':"Tidak ada chapter yang cocok dengan filter.";
  el.querySelectorAll("[data-chapter-review]").forEach(b=>b.onclick=()=>reviewChapter(b));
+ el.querySelectorAll("[data-chapter-import]").forEach(b=>b.onclick=()=>approveAndImportChapter(b));
+}
+async function approveAndImportChapter(b){
+ const id=Number(b.dataset.chapterImport),item=chapterReviewRows.find(r=>Number(r.id)===id);
+ if(!item||!item.manhwa_id||item.scraped_manhwa?.status!=="approved")return toast("Judul induk belum disetujui atau belum tertaut.");
+ const slug=String(item.scraped_manhwa.source_id||"").replace(/^komiku:/,"").trim();
+ const number=Number(item.chapter_number);
+ if(!slug||!Number.isFinite(number))return toast("Slug Komiku atau nomor chapter tidak valid.");
+ const label=chapterReviewTitle(item)+" — Chapter "+number;
+ if(!confirm("Setujui "+label+", lalu ambil halaman dan simpan ke R2?"))return;
+ try{
+  b.disabled=true;b.textContent="Memproses…";
+  const reviewed=await invokeAdminFunction("review-scraped-manhwa",{action:"review_chapter",id,status:"approved"});
+  if(!reviewed.data?.success)throw new Error(reviewed.data?.message||"Persetujuan chapter gagal.");
+  const imported=await invokeAdminFunction("komiku-chapter-import",{manhwa_id:item.manhwa_id,slug,chapter_number:number});
+  if(!imported.data?.success)throw new Error(imported.data?.message||"Impor R2 gagal.");
+  const result=(imported.data.results||[])[0]||{};
+  toast("Chapter disetujui. Status impor: "+(result.status||"selesai")+". Halaman tersimpan: "+(result.newPages||0));
+  await loadChapterQueue();
+ }catch(e){toast("Proses gagal: "+e.message);b.disabled=false;b.textContent="Setujui + impor R2";}
 }
 async function loadChapterQueue(){
  const el=$("#chapterQueue");if(!el)return;
