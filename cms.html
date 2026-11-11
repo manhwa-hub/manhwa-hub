@@ -210,19 +210,35 @@ async function project(){
   <article class="kpi"><div class="kpi-top">Mode scan</div><strong>Auto + manual</strong><small>Otomatis tiap 4 jam · review tetap manual</small></article>
  </div>
  <section class="panel">
+  <div class="panelhead"><div><h2>Kelola URL sumber</h2><p class="sub">Masukkan URL katalog situs dan CSS selector. Bot akan membaca halaman HTML langsung, tanpa API sumber.</p></div><span class="tag">Admin managed</span></div>
+  <form id="sourceForm" class="formgrid">
+   <label>Nama sumber<input class="field" name="name" required placeholder="Contoh: Situs Komik A"></label>
+   <label>Kunci sumber<input class="field" name="source_key" required pattern="[a-z0-9_-]+" placeholder="contoh: situs-komik-a"></label>
+   <label class="wide">URL katalog<input class="field" name="catalog_url" type="url" required placeholder="https://domain.com/latest/ atau gunakan {page}"></label>
+   <label>Selector kartu katalog<input class="field" name="catalog_item_selector" value=".comic-item" required></label>
+   <label>Selector judul<input class="field" name="title_selector" value="a" required></label>
+   <label>Selector link detail<input class="field" name="link_selector" value="a" required></label>
+   <label>Selector cover<input class="field" name="cover_selector" value="img"></label>
+   <label>Atribut cover<input class="field" name="cover_attribute" value="src" placeholder="src / data-src"></label>
+   <label>Selector link chapter di halaman detail<input class="field" name="detail_chapter_selector" value="a" required></label>
+   <label>Selector teks chapter<input class="field" name="chapter_title_selector" value="a" required></label>
+   <label>Batas judul per scan<input class="field" name="scan_limit" type="number" min="1" max="100" value="15"></label>
+   <label class="wide"><span><input type="checkbox" name="enabled" checked> Aktifkan sumber ini untuk scan otomatis dan manual</span></label>
+   <div class="wide"><button class="btn primary" type="submit" id="saveSourceBtn">Simpan URL sumber</button> <button class="btn" type="reset" id="resetSourceBtn">Kosongkan form</button><p id="sourceFormMsg" class="statusline">URL dan selector dapat diubah kapan saja.</p></div>
+  </form>
+  <div id="sourceRows" class="empty">Memuat sumber URL…</div>
+ </section>
+ <section class="panel">
   <div class="panelhead"><div><h2>Scan komik & chapter terbaru</h2><p class="sub">Scan otomatis berjalan tiap 4 jam. Tombol di bawah tetap tersedia untuk scan manual kapan saja; hasil baru selalu masuk antrean review dan tidak langsung diterbitkan.</p></div><span class="tag">Live scan</span></div>
-  <div class="tabletools"><label><input type="checkbox" id="scanShinigami" checked> Shinigami</label><label><input type="checkbox" id="scanKomiku" checked> Komiku</label></div><button class="btn primary" id="scanUpdates">↻ Mulai Scan Update</button>
+  <div class="tabletools" id="scanSourceChecks"><span class="muted">Pilih sumber URL aktif di atas.</span></div><button class="btn primary" id="scanUpdates">↻ Mulai Scan Update</button>
   <p id="scanUpdateMsg" class="statusline">Scan hanya mengambil metadata dan memasukkan hasil baru ke antrean review. Tidak mengubah data yang sudah terbit.</p>
   <div id="scanSummary" class="empty">Belum ada hasil scan pada sesi ini.</div>
  </section>
  <section class="panel"><div class="panelhead"><div><h2>Komik baru ditemukan</h2><p class="sub">Periksa cover, sinopsis, genre, dan sumber sebelum menyetujui judul.</p></div><button class="btn" id="reloadQueue">Muat ulang</button></div><div class="tabletools"><input class="field search" id="reviewSearch" placeholder="Cari judul komik…"><select class="field" id="reviewSource"><option value="">Semua sumber</option><option value="shinigami">Shinigami</option><option value="komiku">Komiku</option></select><span class="statusline" id="reviewCount">Memuat antrean…</span></div><div id="queue" class="empty">Memuat antrean…</div><div class="tabletools"><button class="btn" id="reviewPrev" disabled>Sebelumnya</button><span class="statusline" id="reviewPage">Halaman 1</span><button class="btn" id="reviewNext" disabled>Berikutnya</button></div></section>
  <section class="panel"><div class="panelhead"><div><h2>Chapter baru ditemukan</h2><p class="sub">Periksa judul induk, nomor chapter, sumber, dan tanggal sebelum memasukkan chapter ke katalog.</p></div><button class="btn" id="reloadChapterQueue">Muat ulang</button></div><div class="tabletools"><input class="field search" id="chapterReviewSearch" placeholder="Cari judul atau nomor chapter…"><select class="field" id="chapterReviewSource"><option value="">Semua sumber</option><option value="shinigami">Shinigami</option><option value="komiku">Komiku</option></select><span class="statusline" id="chapterReviewCount">Memuat antrean…</span></div><div id="chapterQueue" class="empty">Memuat antrean chapter…</div><div class="tabletools"><button class="btn" id="chapterReviewPrev" disabled>Sebelumnya</button><span class="statusline" id="chapterReviewPage">Halaman 1</span><button class="btn" id="chapterReviewNext" disabled>Berikutnya</button></div></section>
- <section class="panel"><div class="panelhead"><h2>Scraper pencarian manual</h2><span class="tag">Multi-source</span></div>
-  <form id="scrapeForm" class="tabletools"><input class="field search" name="query" required placeholder="Cari judul manhwa…"><select class="field" name="source"><option value="shinigami">Shinigami</option><option value="komiku">Komiku</option></select><button class="btn">Jalankan scraper</button></form>
-  <p id="scrapeMsg" class="statusline">Pencarian manual tetap tersedia untuk mencari judul tertentu.</p>
- </section>`;
+`;
  $("#projectPending").textContent=fmt(await pendingCount());
- $("#scrapeForm").onsubmit=runScraper;
+ $("#sourceForm").onsubmit=saveSourceConfig;
  $("#reloadQueue").onclick=loadQueue;
  $("#reviewSearch").oninput=()=>{reviewPage=0;renderReviewQueue()};
  $("#reviewSource").onchange=()=>{reviewPage=0;renderReviewQueue()};
@@ -234,19 +250,44 @@ async function project(){
  $("#chapterReviewPrev").onclick=()=>{chapterReviewPage=Math.max(0,chapterReviewPage-1);renderChapterQueue()};
  $("#chapterReviewNext").onclick=()=>{chapterReviewPage++;renderChapterQueue()};
  $("#scanUpdates").onclick=runUpdateScan;
- await Promise.all([loadQueue(),loadChapterQueue()]);
+ await Promise.all([loadSourceConfigs(),loadQueue(),loadChapterQueue()]);
 }
+
+let scraperSourceRows=[];
+function sourceFormValue(form){const f=new FormData(form),v=Object.fromEntries(f.entries());v.enabled=f.has("enabled");v.scan_limit=Number(v.scan_limit||15);return v}
+async function loadSourceConfigs(){
+ const box=$("#sourceRows"),checks=$("#scanSourceChecks");if(!box||!checks)return;
+ const {data,error}=await db.from("scraper_sources").select("*").order("created_at",{ascending:true});
+ if(error)throw error;scraperSourceRows=data||[];
+ checks.innerHTML=scraperSourceRows.filter(x=>x.enabled).map(x=>'<label><input type="checkbox" data-scan-source value="'+esc(x.id)+'" checked> '+esc(x.name)+'</label>').join("")||'<span class="muted">Belum ada URL sumber aktif.</span>';
+ box.innerHTML=scraperSourceRows.length?'<div class="tablewrap"><table><thead><tr><th>Sumber</th><th>URL katalog</th><th>Status</th><th>Pengaturan</th></tr></thead><tbody>'+scraperSourceRows.map(x=>'<tr><td><b>'+esc(x.name)+'</b><div class="muted">'+esc(x.source_key)+'</div></td><td style="max-width:320px;word-break:break-all"><a href="'+esc(x.catalog_url)+'" target="_blank" rel="noopener">'+esc(x.catalog_url)+'</a></td><td>'+(x.enabled?'<span class="tag ok">Aktif</span>':'<span class="tag warn">Nonaktif</span>')+'</td><td><button class="btn" data-edit-source="'+esc(x.id)+'">Edit</button> <button class="btn" data-toggle-source="'+esc(x.id)+'">'+(x.enabled?'Nonaktifkan':'Aktifkan')+'</button> <button class="btn" data-delete-source="'+esc(x.id)+'">Hapus</button></td></tr>').join("")+'</tbody></table></div>':'Belum ada sumber. Tambahkan URL katalog pertama di form atas.';
+ box.querySelectorAll("[data-edit-source]").forEach(b=>b.onclick=()=>{const x=scraperSourceRows.find(y=>y.id===b.dataset.editSource),form=$("#sourceForm");for(const [k,v] of Object.entries(x||{})){const el=form.elements.namedItem(k);if(el&&el.type!=="checkbox")el.value=v??"";else if(el&&el.type==="checkbox")el.checked=!!v;}form.dataset.editId=x.id;$("#saveSourceBtn").textContent="Perbarui URL sumber";$("#sourceFormMsg").textContent="Sedang mengedit "+x.name;form.scrollIntoView({behavior:"smooth",block:"center"});});
+ box.querySelectorAll("[data-toggle-source]").forEach(b=>b.onclick=async()=>{const x=scraperSourceRows.find(y=>y.id===b.dataset.toggleSource);const {error}=await db.from("scraper_sources").update({enabled:!x.enabled,updated_at:new Date().toISOString()}).eq("id",x.id);if(error){toast(error.message);return}await loadSourceConfigs();});
+ box.querySelectorAll("[data-delete-source]").forEach(b=>b.onclick=async()=>{const x=scraperSourceRows.find(y=>y.id===b.dataset.deleteSource);if(!confirm("Hapus konfigurasi URL "+x.name+"? Data hasil scan sebelumnya tidak dihapus."))return;const {error}=await db.from("scraper_sources").delete().eq("id",x.id);if(error){toast(error.message);return}await loadSourceConfigs();});
+}
+async function saveSourceConfig(e){
+ e.preventDefault();const form=e.currentTarget,msg=$("#sourceFormMsg"),btn=$("#saveSourceBtn");
+ try{await guard();btn.disabled=true;const v=sourceFormValue(form);const editId=form.dataset.editId;
+  if(!/^https:\/\//i.test(v.catalog_url))throw new Error("URL katalog harus menggunakan HTTPS.");
+  const payload={...v,updated_at:new Date().toISOString()};
+  const q=editId?db.from("scraper_sources").update(payload).eq("id",editId):db.from("scraper_sources").insert(payload);
+  const {error}=await q;if(error)throw error;
+  await writeAudit(editId?"scraper_source_updated":"scraper_source_created",v.source_key,{name:v.name,catalog_url:v.catalog_url});
+  form.reset();delete form.dataset.editId;btn.textContent="Simpan URL sumber";msg.textContent="URL sumber berhasil disimpan.";await loadSourceConfigs();
+ }catch(err){msg.textContent="Gagal: "+err.message}finally{btn.disabled=false}
+}
+
 async function runScraper(e){e.preventDefault();const f=new FormData(e.currentTarget),msg=$("#scrapeMsg"),btn=e.submitter;try{await guard();btn.disabled=true;msg.textContent="Scraper sedang berjalan…";const {data,error}=await invokeAdminFunction("multi-source-scraper",{query:String(f.get("query")).trim(),sources:[String(f.get("source"))]});if(error)throw error;if(!data?.success)throw new Error(data?.message||data?.error||"Scraper gagal");msg.textContent=`Selesai: ditemukan ${data.total??data.found??0}, disimpan ${data.saved??0}, duplikat ${data.skipped??0}. Periksa antrean sebelum publish.`;await loadQueue()}catch(err){msg.textContent="Gagal: "+err.message}finally{btn.disabled=false}}
 async function runUpdateScan(){
  const btn=$("#scanUpdates"),msg=$("#scanUpdateMsg"),summary=$("#scanSummary");
  try{
-  await guard();btn.disabled=true;btn.textContent="Memindai…";msg.textContent="Menghubungi Shinigami dan Komiku…";summary.className="empty";summary.textContent="Scan sedang berjalan. Mohon tunggu…";
-  const sources=[];if($("#scanShinigami")?.checked)sources.push("shinigami");if($("#scanKomiku")?.checked)sources.push("komiku");if(!sources.length)throw new Error("Pilih minimal satu sumber scan.");
-  const {data,error}=await invokeAdminFunction("scan-updates",{sources});
+  await guard();btn.disabled=true;btn.textContent="Memindai…";msg.textContent="Membaca URL katalog yang dipilih…";summary.className="empty";summary.textContent="Scan sedang berjalan. Mohon tunggu…";
+  const sources=[...document.querySelectorAll("[data-scan-source]:checked")].map(x=>x.value);if(!sources.length)throw new Error("Pilih minimal satu sumber URL aktif.");
+  const {data,error}=await invokeAdminFunction("scan-updates",{source_ids:sources});
   if(error)throw error;if(!data?.success)throw new Error(data?.message||"Scan gagal.");
   msg.textContent=data.message||"Scan selesai.";
   summary.className="notice";
-  summary.innerHTML='<div class="grid"><div><b>'+fmt(data.scanned_comics||0)+'</b><small style="display:block">Judul diperiksa (Shinigami + Komiku)</small></div><div><b>'+fmt(data.new_comics||0)+'</b><small style="display:block">Komik baru</small></div><div><b>'+fmt(data.new_chapters||0)+'</b><small style="display:block">Chapter baru</small></div><div><b>'+fmt(data.checked_series||0)+'</b><small style="display:block">Seri detail berhasil dicek</small></div></div>'+
+  summary.innerHTML='<div class="grid"><div><b>'+fmt(data.scanned_comics||0)+'</b><small style="display:block">Judul diperiksa dari URL</small></div><div><b>'+fmt(data.new_comics||0)+'</b><small style="display:block">Komik baru</small></div><div><b>'+fmt(data.new_chapters||0)+'</b><small style="display:block">Chapter baru</small></div><div><b>'+fmt(data.checked_series||0)+'</b><small style="display:block">Seri detail berhasil dicek</small></div></div>'+
    '<p style="margin:10px 0 0">Valid katalog: '+fmt(data.valid_catalog_items||0)+' · Detail dicoba: '+fmt(data.detail_attempts||0)+' · Detail berhasil: '+fmt(data.detail_success||0)+'</p>'+
    (data.warnings?.length?'<p style="margin:12px 0 0">Peringatan: '+data.warnings.map(w=>esc(w.title||"Sumber")+': '+esc(w.issue)).join(' • ')+'</p>':'')+
    '<p style="margin:10px 0 0">Semua hasil baru masuk antrean pemeriksaan. Belum diterbitkan.</p>';
