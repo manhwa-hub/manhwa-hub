@@ -216,7 +216,7 @@ async function project(){
   <div id="scanSummary" class="empty">Belum ada hasil scan pada sesi ini.</div>
  </section>
  <section class="panel"><div class="panelhead"><div><h2>Komik baru ditemukan</h2><p class="sub">Periksa cover, sinopsis, genre, dan sumber sebelum menyetujui judul.</p></div><button class="btn" id="reloadQueue">Muat ulang</button></div><div class="tabletools"><input class="field search" id="reviewSearch" placeholder="Cari judul komik…"><select class="field" id="reviewSource"><option value="">Semua sumber</option><option value="shinigami">Shinigami</option><option value="komiku">Komiku</option></select><span class="statusline" id="reviewCount">Memuat antrean…</span></div><div id="queue" class="empty">Memuat antrean…</div><div class="tabletools"><button class="btn" id="reviewPrev" disabled>Sebelumnya</button><span class="statusline" id="reviewPage">Halaman 1</span><button class="btn" id="reviewNext" disabled>Berikutnya</button></div></section>
- <section class="panel"><div class="panelhead"><h2>Chapter baru ditemukan</h2><button class="btn" id="reloadChapterQueue">Muat ulang</button></div><div id="chapterQueue" class="empty">Memuat antrean chapter…</div></section>
+ <section class="panel"><div class="panelhead"><div><h2>Chapter baru ditemukan</h2><p class="sub">Periksa judul induk, nomor chapter, sumber, dan tanggal sebelum memasukkan chapter ke katalog.</p></div><button class="btn" id="reloadChapterQueue">Muat ulang</button></div><div class="tabletools"><input class="field search" id="chapterReviewSearch" placeholder="Cari judul atau nomor chapter…"><select class="field" id="chapterReviewSource"><option value="">Semua sumber</option><option value="shinigami">Shinigami</option><option value="komiku">Komiku</option></select><span class="statusline" id="chapterReviewCount">Memuat antrean…</span></div><div id="chapterQueue" class="empty">Memuat antrean chapter…</div><div class="tabletools"><button class="btn" id="chapterReviewPrev" disabled>Sebelumnya</button><span class="statusline" id="chapterReviewPage">Halaman 1</span><button class="btn" id="chapterReviewNext" disabled>Berikutnya</button></div></section>
  <section class="panel"><div class="panelhead"><h2>Scraper pencarian manual</h2><span class="tag">Multi-source</span></div>
   <form id="scrapeForm" class="tabletools"><input class="field search" name="query" required placeholder="Cari judul manhwa…"><select class="field" name="source"><option value="shinigami">Shinigami</option><option value="komiku">Komiku</option></select><button class="btn">Jalankan scraper</button></form>
   <p id="scrapeMsg" class="statusline">Pencarian manual tetap tersedia untuk mencari judul tertentu.</p>
@@ -229,6 +229,10 @@ async function project(){
  $("#reviewPrev").onclick=()=>{reviewPage=Math.max(0,reviewPage-1);renderReviewQueue()};
  $("#reviewNext").onclick=()=>{reviewPage++;renderReviewQueue()};
  $("#reloadChapterQueue").onclick=loadChapterQueue;
+ $("#chapterReviewSearch").oninput=()=>{chapterReviewPage=0;renderChapterQueue()};
+ $("#chapterReviewSource").onchange=()=>{chapterReviewPage=0;renderChapterQueue()};
+ $("#chapterReviewPrev").onclick=()=>{chapterReviewPage=Math.max(0,chapterReviewPage-1);renderChapterQueue()};
+ $("#chapterReviewNext").onclick=()=>{chapterReviewPage++;renderChapterQueue()};
  $("#scanUpdates").onclick=runUpdateScan;
  await Promise.all([loadQueue(),loadChapterQueue()]);
 }
@@ -250,22 +254,33 @@ async function runUpdateScan(){
  }catch(e){msg.textContent="Scan gagal: "+e.message;summary.className="notice";summary.textContent=e.message}
  finally{btn.disabled=false;btn.textContent="↻ Mulai Scan Update"}
 }
+let chapterReviewRows=[],chapterReviewPage=0;
+function chapterReviewTitle(r){return r.manhwa?.title||"Manhwa belum tertaut"}
+function renderChapterQueue(){
+ const el=$("#chapterQueue");if(!el)return;
+ const q=($("#chapterReviewSearch")?.value||"").trim().toLowerCase(),source=$("#chapterReviewSource")?.value||"";
+ const rows=chapterReviewRows.filter(r=>(!q||(chapterReviewTitle(r)+" "+(r.title||"")+" "+r.chapter_number).toLowerCase().includes(q))&&(!source||String(r.source_id||"").toLowerCase().includes(source)));
+ const size=30,pages=Math.max(1,Math.ceil(rows.length/size));chapterReviewPage=Math.min(chapterReviewPage,pages-1);
+ const shown=rows.slice(chapterReviewPage*size,(chapterReviewPage+1)*size);
+ $("#chapterReviewCount").textContent=fmt(rows.length)+" dari "+fmt(chapterReviewRows.length)+" chapter";
+ $("#chapterReviewPage").textContent="Halaman "+(chapterReviewPage+1)+" / "+pages;
+ $("#chapterReviewPrev").disabled=chapterReviewPage===0;$("#chapterReviewNext").disabled=chapterReviewPage>=pages-1;
+ el.className=shown.length?"tablewrap":"empty";
+ el.innerHTML=shown.length?'<table><thead><tr><th>Komik induk</th><th>Chapter</th><th>Sumber & tanggal</th><th>Referensi</th><th>Aksi</th></tr></thead><tbody>'+
+ shown.map(r=>{const href=(()=>{try{const u=new URL(r.source_url);return /^https?:$/.test(u.protocol)?u.href:""}catch(_){return ""}})();const date=r.source_updated_at?new Date(r.source_updated_at).toLocaleDateString("id-ID"):(r.created_at?new Date(r.created_at).toLocaleDateString("id-ID"):"—");return '<tr><td><strong>'+esc(chapterReviewTitle(r))+'</strong></td><td><strong>Chapter '+esc(r.chapter_number??"—")+'</strong><div class="muted" style="font-size:12px">'+esc(r.title||"Tanpa judul")+'</div></td><td>'+esc(r.source_id||"—")+'<div class="muted" style="font-size:12px">'+esc(date)+'</div></td><td>'+(href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">Buka sumber ↗</a>':'<span class="muted">Tidak ada URL sumber</span>')+'</td><td><button class="btn" data-chapter-review="'+esc(r.id)+'" data-status="approved">Setujui</button> <button class="btn" data-chapter-review="'+esc(r.id)+'" data-status="rejected">Tolak</button></td></tr>'}).join("")+'</tbody></table>':"Tidak ada chapter yang cocok dengan filter.";
+ el.querySelectorAll("[data-chapter-review]").forEach(b=>b.onclick=()=>reviewChapter(b));
+}
 async function loadChapterQueue(){
  const el=$("#chapterQueue");if(!el)return;
  try{
   const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"list_chapters"});
   if(error)throw error;if(!data?.success)throw new Error(data?.message||"Gagal memuat antrean chapter.");
-  const rows=data.data||[];$("#chapterPendingCount").textContent=fmt(rows.length);
-  el.className=rows.length?"tablewrap":"empty";
-  el.innerHTML=rows.length?'<table><thead><tr><th>Komik</th><th>Chapter</th><th>Nomor</th><th>Sumber</th><th>Aksi</th></tr></thead><tbody>'+
-   rows.map(r=>'<tr><td><strong>'+esc(r.manhwa?.title||"Manhwa")+'</strong></td><td>'+esc(r.title||"—")+'</td><td>'+esc(r.chapter_number)+'</td><td>'+(r.source_url?'<a href="'+esc(r.source_url)+'" target="_blank" rel="noopener">Buka sumber</a>':'Sumber')+'</td><td><button class="btn" data-chapter-review="'+r.id+'" data-status="approved">Setujui</button> <button class="btn" data-chapter-review="'+r.id+'" data-status="rejected">Tolak</button></td></tr>').join("")+
-   '</tbody></table>':"Tidak ada chapter baru yang menunggu review.";
-  el.querySelectorAll("[data-chapter-review]").forEach(b=>b.onclick=()=>reviewChapter(b));
+  chapterReviewRows=data.data||[];chapterReviewPage=0;$("#chapterPendingCount").textContent=fmt(chapterReviewRows.length);renderChapterQueue();
  }catch(e){el.className="notice";el.textContent="Antrean chapter gagal dimuat: "+e.message}
 }
 async function reviewChapter(b){
  const id=b.dataset.chapterReview,status=b.dataset.status;
- if(!confirm(status==="approved"?"Tambahkan chapter ini ke katalog?":"Tolak temuan chapter ini?"))return;
+ const item=chapterReviewRows.find(r=>String(r.id)===String(id));const label=item?chapterReviewTitle(item)+" — Chapter "+(item.chapter_number??"—"):"chapter ini";if(!confirm(status==="approved"?"Setujui "+label+" dan tambahkan ke katalog?":"Tolak "+label+"?"))return;
  try{
   b.disabled=true;
   const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"review_chapter",id:Number(id),status});
