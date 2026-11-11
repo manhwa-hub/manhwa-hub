@@ -255,7 +255,7 @@ async function runUpdateScan(){
  finally{btn.disabled=false;btn.textContent="↻ Mulai Scan Update"}
 }
 let chapterReviewRows=[],chapterReviewPage=0;
-function chapterReviewTitle(r){return r.manhwa?.title||"Manhwa belum tertaut"}
+function chapterReviewTitle(r){return r.manhwa?.title||r.scraped_manhwa?.title||"Manhwa belum tertaut"}
 function renderChapterQueue(){
  const el=$("#chapterQueue");if(!el)return;
  const q=($("#chapterReviewSearch")?.value||"").trim().toLowerCase(),source=$("#chapterReviewSource")?.value||"";
