@@ -204,7 +204,7 @@ async function pendingCount(){const {count,error}=await db.from("scraped_manhwa"
 async function project(){
  content.innerHTML=head("PROJECT WORKSPACE","Project","Kelola scraper, scan katalog terbaru, dan periksa komik maupun chapter baru sebelum diterbitkan.")+`
  <div class="grid">
-  <article class="kpi"><div class="kpi-top">Sumber scan</div><strong>RatuManhwa</strong><small>Live catalog API</small></article>
+  <article class="kpi"><div class="kpi-top">Sumber scan</div><strong>Shinigami + Komiku</strong><small>Dual-source catalog</small></article>
   <article class="kpi"><div class="kpi-top">Review komik</div><strong id="projectPending">—</strong><small>Komik baru menunggu review</small></article>
   <article class="kpi"><div class="kpi-top">Review chapter</div><strong id="chapterPendingCount">—</strong><small>Chapter baru menunggu review</small></article>
   <article class="kpi"><div class="kpi-top">Mode</div><strong>Manual scan</strong><small>Tidak publish otomatis</small></article>
