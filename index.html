@@ -674,12 +674,20 @@ async function reader(){
    const loaded=()=>{if(wrap)wrap.classList.remove("image-loading");};
    img.addEventListener("load",loaded,{once:true});
    img.addEventListener("error",()=>{
+    const retries=Number(img.dataset.loadRetries||"0");
+    if(retries<2){
+     img.dataset.loadRetries=String(retries+1);
+     const retryUrl=new URL(img.src,window.location.href);
+     retryUrl.searchParams.set("_reader_retry",String(Date.now()));
+     setTimeout(()=>{img.src=retryUrl.href;},500*(retries+1));
+     return;
+    }
     loaded();img.classList.add("image-failed");
     const message=document.createElement("div");
     message.className="reader-image-error";
-    message.textContent="Gambar halaman gagal dimuat. Periksa koneksi atau URL gambar di dashboard admin.";
+    message.textContent="Gambar belum berhasil dimuat setelah dicoba ulang. Periksa koneksi atau coba muat ulang halaman.";
     img.insertAdjacentElement("afterend",message);
-   },{once:true});
+   });
    if(img.complete&&img.naturalWidth>0)loaded();
   });
   let activePage=savedPage;
