@@ -429,6 +429,20 @@ body.admin-mode .zen-dash-panel{box-shadow:0 8px 24px rgba(0,0,0,.12)}
 const $=s=>document.querySelector(s);
 const main=$("#main");
 const db=window.manwhahubSupabase;
+let siteSettings={homepage:{},seo:{}};
+async function loadSiteSettings(){
+ if(!db)return;
+ try{
+  const {data,error}=await db.from("site_settings").select("key,value").in("key",["homepage","seo"]);
+  if(error)throw error;
+  (data||[]).forEach(row=>{siteSettings[row.key]=row.value||{}});
+  const seo=siteSettings.seo||{};
+  if(seo.title)document.title=seo.title;
+  if(seo.description){let m=document.querySelector('meta[name="description"]');if(!m){m=document.createElement("meta");m.name="description";document.head.appendChild(m)}m.content=seo.description}
+  if(Array.isArray(seo.keywords)&&seo.keywords.length){let m=document.querySelector('meta[name="keywords"]');if(!m){m=document.createElement("meta");m.name="keywords";document.head.appendChild(m)}m.content=seo.keywords.join(", ")}
+  if(seo.canonical_url){let l=document.querySelector('link[rel="canonical"]');if(!l){l=document.createElement("link");l.rel="canonical";document.head.appendChild(l)}l.href=seo.canonical_url}
+ }catch(error){console.warn("Pengaturan situs tidak termuat:",error.message)}
+}
 const initial=[
 {id:1,title:"The Beginning After The End",genre:["Fantasy","Action"],status:"Ongoing",rating:"9.8",chapters:12,desc:"Seorang raja bereinkarnasi ke dunia penuh sihir dan petualangan. Ikuti perjalanan barunya menemukan arti keluarga dan kekuatan.",colors:["#7651b5","#182b4d"],badge:"POPULER"},
 {id:2,title:"Solo Leveling",genre:["Action","Fantasy"],status:"Completed",rating:"9.9",chapters:15,desc:"Pemburu terlemah mendapatkan kesempatan untuk berkembang tanpa batas melalui sistem misterius.",colors:["#1e527e","#101323"],badge:"TOP RATED"},
@@ -521,10 +535,13 @@ function render(){
  else if(currentPage==="admin") admin();
  hydrateCoverImages();
 }
-function home(){main.innerHTML=`<section class="hero"><div class="hero-content"><div class="eyebrow">DUNIA CERITA TANPA BATAS</div><h1>Baca Cerita.<br><span style="color:#c4a5ff">Jelajahi Dunia.</span></h1><p>Temukan manhwa, manhua, dan manga favoritmu. Ikuti chapter terbaru dan simpan bacaanmu di satu tempat.</p><button class="btn primary" data-go="catalog">Jelajahi Katalog →</button></div></section>
-<section class="section"><div class="section-head"><div><h2>🔥 Sedang Populer</h2><p>Pilihan bacaan yang banyak disukai</p></div><button class="linkbtn" data-go="catalog">Lihat semua →</button></div><div class="grid">${mangas.slice(0,6).map(card).join("")}</div></section>
-<section class="section"><div class="section-head"><div><h2>✨ Update Terbaru</h2><p>Temukan cerita untuk menemani harimu</p></div></div><div class="grid">${mangas.slice().reverse().slice(0,6).map(card).join("")}</div></section>
-<section class="section"><div class="notice">Selamat datang di MANHWA HUB. Katalog dimuat dari database Supabase. Chapter dan gambar akan dilengkapi pada tahap berikutnya. Konten final menggunakan materi yang dimiliki atau berizin.</div></section>`}
+function home(){
+const s=siteSettings.homepage||{};
+main.innerHTML=\`<section class="hero"><div class="hero-content"><div class="eyebrow">DUNIA CERITA TANPA BATAS</div><h1>\${esc(s.hero_title||"Baca Cerita. Jelajahi Dunia.")}</h1><p>\${esc(s.hero_subtitle||"Temukan manhwa, manhua, dan manga favoritmu. Ikuti chapter terbaru dan simpan bacaanmu di satu tempat.")}</p><button class="btn primary" data-go="catalog">Jelajahi Katalog →</button></div></section>
+<section class="section"><div class="section-head"><div><h2>🔥 \${esc(s.featured_heading||"Sedang Populer")}</h2><p>Pilihan bacaan yang banyak disukai</p></div><button class="linkbtn" data-go="catalog">Lihat semua →</button></div><div class="grid">\${mangas.slice(0,6).map(card).join("")}</div></section>
+<section class="section"><div class="section-head"><div><h2>✨ \${esc(s.updates_heading||"Update Terbaru")}</h2><p>Temukan cerita untuk menemani harimu</p></div></div><div class="grid">\${mangas.slice().reverse().slice(0,6).map(card).join("")}</div></section>
+<section class="section"><div class="notice">Selamat datang di MANHWA HUB. Katalog dimuat dari database Supabase. Konten final menggunakan materi yang dimiliki atau berizin.</div></section>\`
+}
 function catalog(){main.innerHTML=`<div><div class="eyebrow">JELAJAHI KOLEKSI</div><h1 class="page-title">Katalog Manhwa</h1><p class="sub">Cari cerita favoritmu berdasarkan judul, genre, atau status.</p></div>
 <div class="toolbar"><input class="field search" id="search" placeholder="Cari judul manhwa..."><select class="field" id="genre"><option value="">Semua genre</option>${[...new Set(mangas.flatMap(m=>m.genre))].sort().map(g=>`<option>${esc(g)}</option>`).join("")}</select><select class="field" id="status"><option value="">Semua status</option><option>Ongoing</option><option>Completed</option></select><select class="field" id="sort"><option value="popular">Terpopuler</option><option value="az">Judul A-Z</option><option value="new">Terbaru</option></select></div><div class="grid" id="catalogGrid">${mangas.map(card).join("")}</div>`;["search","genre","status","sort"].forEach(id=>$("#"+id).addEventListener(id==="search"?"input":"change",filterCatalog))}
 function filterCatalog(){let q=$("#search").value.toLowerCase(),g=$("#genre").value,s=$("#status").value,sort=$("#sort").value;let arr=mangas.filter(m=>m.title.toLowerCase().includes(q)&&(!g||m.genre.includes(g))&&(!s||m.status===s));if(sort==="az")arr.sort((a,b)=>a.title.localeCompare(b.title));if(sort==="new")arr.reverse();$("#catalogGrid").innerHTML=arr.length?arr.map(card).join(""):`<div class="empty" style="grid-column:1/-1">Tidak ada manhwa yang cocok dengan pencarianmu.</div>`}
@@ -1141,7 +1158,7 @@ if(db){
   if(currentPage==="profile")profile();
  });
 }
-loadManhwaFromDatabase().then(()=>render());
+Promise.all([loadSiteSettings(),loadManhwaFromDatabase()]).then(()=>render());
 })();
 </script>
 </body>
