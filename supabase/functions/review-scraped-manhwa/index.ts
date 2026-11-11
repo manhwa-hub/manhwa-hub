@@ -89,8 +89,7 @@ Deno.serve(async (req: Request) => {
           cover_url: item.cover_url || null,
           genres: item.genres || [],
           type: "manhwa",
-          status: ["ongoing", "completed", "hiatus"].includes(String(item.status).toLowerCase())
-            ? String(item.status).toLowerCase() : "ongoing",
+          status: "ongoing",
         }).select("id").single();
         if (insertError) throw insertError;
         const { error: updateError } = await admin.from("scraped_manhwa")
