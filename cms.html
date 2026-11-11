@@ -162,7 +162,7 @@ tbody tr:hover{background:rgba(140,124,220,.07)}
 (()=>{"use strict";
 const $=s=>document.querySelector(s),content=$("#content"),db=window.manwhahubSupabase;
 const coverProxyBase="https://lvbtxofhumoxvhwiqend.supabase.co/functions/v1/cover-proxy?url=";
-let active="dashboard",sessionUser=null;
+let active="dashboard",sessionUser=null,masterPage=0,masterHasMore=false;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(s){const t=$("#toast");t.textContent=s;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2300)}
 async function writeAudit(action,target,details={}){try{const {error}=await db.from("admin_audit_logs").insert({actor_id:sessionUser?.id||null,action,target,details});if(error)throw error;return true}catch(e){console.warn("Audit log gagal:",e.message);return false}}
@@ -296,6 +296,9 @@ async function master(){
  <section class="panel hidden" id="chapterManager"><div class="panelhead"><div><h2>Chapter: <span id="chapterManhwaTitle"></span></h2><p class="sub">Kelola daftar chapter untuk judul terpilih.</p></div><button class="btn" id="closeChapterManager">Tutup</button></div>
  <form id="chapterForm" class="tabletools"><input type="hidden" name="id"><input type="hidden" name="manhwa_id"><input class="field" name="chapter_number" type="number" step="0.01" min="0" required placeholder="Nomor chapter"><input class="field search" name="title" placeholder="Judul chapter (opsional)"><input class="field search" name="content_url" type="url" placeholder="URL sumber (opsional)"><button class="btn primary" id="saveChapter">Tambah chapter</button></form>
  <div class="statusline" id="chapterFormMsg"></div><div id="chapterRows" class="empty">Memuat chapter…</div></section>
+ <section class="panel"><div class="panelhead"><div><h2>Hasil scraper → Master Data</h2><p class="sub">Judul, cover, dan chapter yang ditemukan scraper. Impor massal akan menggabungkan judul yang sama dan memasukkan chapter tanpa duplikasi.</p></div><span class="tag warn" id="scrapedPendingTag">Pending</span></div>
+ <div class="tabletools"><button class="btn primary" id="importAllScraped">Impor semua ke Master Data</button><button class="btn" id="refreshScrapedMaster">Muat ulang hasil scraper</button><span class="statusline" id="scrapedImportMsg"></span></div>
+ <div id="scrapedMasterRows" class="empty">Memuat hasil scraper…</div></section>
  <section class="panel"><div class="panelhead"><h2>Katalog manhwa</h2><span class="tag">CRUD Supabase</span></div>
  <div class="tabletools"><input class="field search" id="masterSearch" placeholder="Cari judul atau slug…"><select class="field" id="masterStatus"><option value="">Semua status</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="hiatus">Hiatus</option></select><button class="btn" id="masterLoad">Cari</button></div>
  <div id="masterRows" class="empty">Memuat katalog…</div></section>`;
@@ -304,9 +307,12 @@ async function master(){
  $("#chapterForm").onsubmit=saveChapter;
  $("#closeManhwaEditor").onclick=$("#cancelManhwa").onclick=()=>$("#manhwaEditor").classList.add("hidden");
  $("#manhwaForm").onsubmit=saveManhwa;
- $("#masterLoad").onclick=loadMasterRows;
+ $("#masterLoad").onclick=()=>{masterPage=0;loadMasterRows()};
+ $("#refreshScrapedMaster").onclick=loadScrapedMasterQueue;
+ $("#importAllScraped").onclick=importAllScraped;
+ $("#masterStatus").onchange=()=>{masterPage=0;loadMasterRows()};
  $("#masterSearch").onkeydown=e=>{if(e.key==="Enter")loadMasterRows()};
- await loadMasterRows();
+ await Promise.all([loadMasterRows(),loadScrapedMasterQueue()]);
 }
 function makeSlug(value){return String(value||"").normalize("NFKD").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,250)}
 function openManhwaEditor(row){
@@ -404,8 +410,53 @@ async function deleteManhwa(id,title){
  }catch(e){toast("Penghapusan gagal: "+e.message)}
 }
 
-async function loadMasterRows(){const el=$("#masterRows");if(!el)return;el.className="empty";el.textContent="Mencari…";try{let q=db.from("manhwa").select("id,title,slug,status,release_year,cover_url").order("title").limit(100);const term=$("#masterSearch").value.trim();if(term)q=q.or("title.ilike.%"+term+"%,slug.ilike.%"+term+"%");if($("#masterStatus").value)q=q.eq("status",$("#masterStatus").value);const {data,error}=await q;if(error)throw error;el.className=data.length?"tablewrap":"empty";el.innerHTML=data.length?`<table><thead><tr><th>Cover</th><th>Judul</th><th>Slug</th><th>Status</th><th>Tahun</th><th>Aksi</th></tr></thead><tbody>${data.map(m=>`<tr><td><div class="review-cover">${m.cover_url?`<img src="${esc(m.cover_url)}" alt="" loading="lazy" onerror="this.style.display='none'">`:"—"}</div></td><td><strong>${esc(m.title)}</strong></td><td>${esc(m.slug||"—")}</td><td><span class="tag">${esc(m.status||"—")}</span></td><td>${esc(m.release_year||"—")}</td><td><button class="btn" data-chapters-manhwa="${esc(m.id)}" data-title="${esc(m.title)}">Chapter</button> <button class="btn" data-edit-manhwa="${esc(m.id)}">Edit</button> <button class="btn" data-delete-manhwa="${esc(m.id)}" data-title="${esc(m.title)}">Hapus</button></td></tr>`).join("")}</tbody></table>`:"Tidak ada data yang cocok.";el.querySelectorAll("[data-chapters-manhwa]").forEach(b=>b.onclick=()=>openChapterManager(b.dataset.chaptersManhwa,b.dataset.title));
-el.querySelectorAll("[data-edit-manhwa]").forEach(b=>b.onclick=()=>editManhwa(b.dataset.editManhwa));el.querySelectorAll("[data-delete-manhwa]").forEach(b=>b.onclick=()=>deleteManhwa(b.dataset.deleteManhwa,b.dataset.title))}catch(e){el.className="empty";el.textContent="Query gagal: "+e.message}}
+async function loadScrapedMasterQueue(){
+ const el=$("#scrapedMasterRows");if(!el)return;
+ el.className="empty";el.textContent="Memuat hasil scraper…";
+ try{
+  const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"list"});
+  if(error)throw error;if(!data?.success)throw new Error(data?.message||"Gagal memuat hasil scraper.");
+  const rows=data.data||[];$("#scrapedPendingTag").textContent=fmt(rows.length)+" pending";
+  el.className=rows.length?"tablewrap":"empty";
+  el.innerHTML=rows.length?'<table><thead><tr><th>Cover</th><th>Judul</th><th>Genre</th><th>Sumber</th><th>Status</th></tr></thead><tbody>'+
+   rows.map(r=>'<tr><td><div class="review-cover">'+(r.cover_url?'<img src="'+coverProxyBase+encodeURIComponent(r.cover_url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'—')+'</div></td><td><strong>'+esc(r.title)+'</strong><div class="muted">'+esc((r.description||"").slice(0,110))+'</div></td><td>'+esc((r.genres||[]).join(", ")||"—")+'</td><td>'+esc(r.source_id||"—")+'</td><td><span class="tag warn">Pending</span></td></tr>').join("")+
+   '</tbody></table>':"Tidak ada hasil scraper yang menunggu impor.";
+ }catch(e){el.className="notice";el.textContent="Gagal memuat hasil scraper: "+e.message}
+}
+async function importAllScraped(){
+ if(!confirm("Impor semua judul pending dari scraper ke Master Data? Judul duplikat akan digabung, cover kosong akan dilengkapi, dan chapter yang ditemukan akan ditambahkan."))return;
+ const btn=$("#importAllScraped"),msg=$("#scrapedImportMsg");btn.disabled=true;msg.textContent="Mengimpor judul, cover, dan chapter…";
+ try{
+  const {data,error}=await invokeAdminFunction("review-scraped-manhwa",{action:"import_all"});
+  if(error)throw error;
+  if(!data?.success&&data?.failed===undefined)throw new Error(data?.message||"Impor gagal.");
+  msg.textContent=data.message||"Impor selesai.";
+  if(data.errors?.length)msg.textContent+=" | "+data.errors.slice(0,3).join(" • ");
+  toast("Impor selesai: "+fmt(data.imported||0)+" judul baru, "+fmt(data.merged||0)+" digabung.");
+  masterPage=0;await Promise.all([loadMasterRows(),loadScrapedMasterQueue()]);
+ }catch(e){msg.textContent="Impor gagal: "+e.message;toast("Impor gagal: "+e.message)}
+ finally{btn.disabled=false}
+}
+async function loadMasterRows(){
+ const el=$("#masterRows");if(!el)return;el.className="empty";el.textContent="Memuat katalog…";
+ try{
+  let q=db.from("manhwa").select("id,title,slug,status,release_year,cover_url").order("title").range(masterPage*100,masterPage*100+99);
+  const term=$("#masterSearch").value.trim();if(term)q=q.or("title.ilike.%"+term+"%,slug.ilike.%"+term+"%");
+  if($("#masterStatus").value)q=q.eq("status",$("#masterStatus").value);
+  const {data,error}=await q;if(error)throw error;
+  masterHasMore=(data||[]).length===100;
+  el.className=data.length?"tablewrap":"empty";
+  el.innerHTML=data.length?'<table><thead><tr><th>Cover</th><th>Judul</th><th>Slug</th><th>Status</th><th>Tahun</th><th>Aksi</th></tr></thead><tbody>'+
+   data.map(m=>'<tr><td><div class="review-cover">'+(m.cover_url?'<img src="'+esc(m.cover_url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'—')+'</div></td><td><strong>'+esc(m.title)+'</strong></td><td>'+esc(m.slug||"—")+'</td><td><span class="tag">'+esc(m.status||"—")+'</span></td><td>'+esc(m.release_year||"—")+'</td><td><button class="btn" data-chapters-manhwa="'+esc(m.id)+'" data-title="'+esc(m.title)+'">Chapter</button> <button class="btn" data-edit-manhwa="'+esc(m.id)+'">Edit</button> <button class="btn" data-delete-manhwa="'+esc(m.id)+'" data-title="'+esc(m.title)+'">Hapus</button></td></tr>').join("")+
+   '</tbody></table><div class="tabletools"><button class="btn" id="masterPrev" '+(masterPage===0?'disabled':'')+'>Sebelumnya</button><span class="statusline">Halaman '+(masterPage+1)+'</span><button class="btn" id="masterNext" '+(!masterHasMore?'disabled':'')+'>Berikutnya</button></div>':(masterPage?"Tidak ada judul berikutnya.":"Belum ada data Master Data.");
+  el.querySelectorAll("[data-chapters-manhwa]").forEach(b=>b.onclick=()=>openChapterManager(b.dataset.chaptersManhwa,b.dataset.title));
+  el.querySelectorAll("[data-edit-manhwa]").forEach(b=>b.onclick=()=>editManhwa(b.dataset.editManhwa));
+  el.querySelectorAll("[data-delete-manhwa]").forEach(b=>b.onclick=()=>deleteManhwa(b.dataset.deleteManhwa,b.dataset.title));
+  $("#masterPrev")?.addEventListener("click",()=>{masterPage=Math.max(0,masterPage-1);loadMasterRows()});
+  $("#masterNext")?.addEventListener("click",()=>{masterPage++;loadMasterRows()});
+ }catch(e){el.className="notice";el.textContent="Query katalog gagal: "+e.message}
+}
+
 async function editor(){
  content.innerHTML=head("ADMIN TOOLS","Editor Admin","Kelola konten homepage, metadata SEO, dan riwayat aktivitas administrator.")+`
  <div class="modules">
