@@ -238,7 +238,8 @@ async function runUpdateScan(){
   if(error)throw error;if(!data?.success)throw new Error(data?.message||"Scan gagal.");
   msg.textContent=data.message||"Scan selesai.";
   summary.className="notice";
-  summary.innerHTML='<div class="grid"><div><b>'+fmt(data.scanned_comics||0)+'</b><small style="display:block">Judul diperiksa (Shinigami + Komiku)</small></div><div><b>'+fmt(data.new_comics||0)+'</b><small style="display:block">Komik baru</small></div><div><b>'+fmt(data.new_chapters||0)+'</b><small style="display:block">Chapter baru</small></div><div><b>'+fmt(data.checked_series||0)+'</b><small style="display:block">Seri dicek</small></div></div>'+
+  summary.innerHTML='<div class="grid"><div><b>'+fmt(data.scanned_comics||0)+'</b><small style="display:block">Judul diperiksa (Shinigami + Komiku)</small></div><div><b>'+fmt(data.new_comics||0)+'</b><small style="display:block">Komik baru</small></div><div><b>'+fmt(data.new_chapters||0)+'</b><small style="display:block">Chapter baru</small></div><div><b>'+fmt(data.checked_series||0)+'</b><small style="display:block">Seri detail berhasil dicek</small></div></div>'+
+   '<p style="margin:10px 0 0">Valid katalog: '+fmt(data.valid_catalog_items||0)+' · Detail dicoba: '+fmt(data.detail_attempts||0)+' · Detail berhasil: '+fmt(data.detail_success||0)+'</p>'+
    (data.warnings?.length?'<p style="margin:12px 0 0">Peringatan: '+data.warnings.map(w=>esc(w.title||"Sumber")+': '+esc(w.issue)).join(' • ')+'</p>':'')+
    '<p style="margin:10px 0 0">Semua hasil baru masuk antrean pemeriksaan. Belum diterbitkan.</p>';
   await Promise.all([loadQueue(),loadChapterQueue()]);
