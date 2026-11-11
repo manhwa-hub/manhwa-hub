@@ -326,10 +326,11 @@ async function approveAndImportChapter(b){
  if(!confirm("Setujui "+label+", lalu ambil halaman dan simpan ke R2?"))return;
  try{
   b.disabled=true;b.textContent="Memproses…";
-  const reviewed=await invokeAdminFunction("review-scraped-manhwa",{action:"review_chapter",id,status:"approved"});
-  if(!reviewed.data?.success)throw new Error(reviewed.data?.message||"Persetujuan chapter gagal.");
+  // Import first so a failed R2 transfer leaves the review item pending and retryable.
   const imported=await invokeAdminFunction("komiku-chapter-import",{manhwa_id:item.manhwa_id,slug,chapter_number:number});
   if(!imported.data?.success)throw new Error(imported.data?.message||"Impor R2 gagal.");
+  const reviewed=await invokeAdminFunction("review-scraped-manhwa",{action:"review_chapter",id,status:"approved"});
+  if(!reviewed.data?.success)throw new Error(reviewed.data?.message||"Gambar tersimpan, tetapi persetujuan chapter gagal. Muat ulang lalu periksa duplikat sebelum mencoba lagi.");
   const result=(imported.data.results||[])[0]||{};
   toast("Chapter disetujui. Status impor: "+(result.status||"selesai")+". Halaman tersimpan: "+(result.newPages||0));
   await loadChapterQueue();
