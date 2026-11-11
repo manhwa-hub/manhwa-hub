@@ -242,7 +242,7 @@ async function project(){
 `;
  $("#projectPending").textContent=fmt(await pendingCount());
  $("#sourceForm").onsubmit=saveSourceConfig;
- $("#sourceForm").elements.namedItem("name").addEventListener("input",e=>{const key=$("#sourceForm").elements.namedItem("source_key");key.value=String(e.target.value||"").toLowerCase().normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,70);});
+ $("#sourceForm").elements.namedItem("name").addEventListener("input",e=>{const key=$("#sourceForm").elements.namedItem("source_key");key.value=String(e.target.value||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,70);});
  $("#reloadQueue").onclick=loadQueue;
  $("#reviewSearch").oninput=()=>{reviewPage=0;renderReviewQueue()};
  $("#reviewSource").onchange=()=>{reviewPage=0;renderReviewQueue()};
@@ -258,7 +258,7 @@ async function project(){
 }
 
 let scraperSourceRows=[];
-function sourceFormValue(form){const f=new FormData(form),v=Object.fromEntries(f.entries());v.enabled=f.has("enabled");v.scan_limit=Number(v.scan_limit||15);v.source_key=String(v.source_key||v.name||"source").toLowerCase().normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,70)||"source";return v}
+function sourceFormValue(form){const f=new FormData(form),v=Object.fromEntries(f.entries());v.enabled=f.has("enabled");v.scan_limit=Number(v.scan_limit||15);v.source_key=String(v.source_key||v.name||"source").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,70)||"source";return v}
 async function loadSourceConfigs(){
  const box=$("#sourceRows"),checks=$("#scanSourceChecks");if(!box||!checks)return;
  const {data,error}=await db.from("scraper_sources").select("*").order("created_at",{ascending:true});
