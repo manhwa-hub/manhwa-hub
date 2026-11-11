@@ -311,7 +311,7 @@ async function master(){
  $("#refreshScrapedMaster").onclick=loadScrapedMasterQueue;
  $("#importAllScraped").onclick=importAllScraped;
  $("#masterStatus").onchange=()=>{masterPage=0;loadMasterRows()};
- $("#masterSearch").onkeydown=e=>{if(e.key==="Enter")loadMasterRows()};
+ $("#masterSearch").onkeydown=e=>{if(e.key==="Enter"){masterPage=0;loadMasterRows()}};
  await Promise.all([loadMasterRows(),loadScrapedMasterQueue()]);
 }
 function makeSlug(value){return String(value||"").normalize("NFKD").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,250)}
