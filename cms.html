@@ -211,14 +211,14 @@ async function project(){
  </div>
  <section class="panel">
   <div class="panelhead"><div><h2>Scan komik & chapter terbaru</h2><p class="sub">Cari judul baru di katalog sumber dan periksa chapter terbaru untuk komik yang sudah ada.</p></div><span class="tag">Live scan</span></div>
-  <button class="btn primary" id="scanUpdates">↻ Mulai Scan Update</button>
+  <div class="tabletools"><label><input type="checkbox" id="scanShinigami" checked> Shinigami</label><label><input type="checkbox" id="scanKomiku" checked> Komiku</label></div><button class="btn primary" id="scanUpdates">↻ Mulai Scan Update</button>
   <p id="scanUpdateMsg" class="statusline">Scan hanya mengambil metadata dan memasukkan hasil baru ke antrean review. Tidak mengubah data yang sudah terbit.</p>
   <div id="scanSummary" class="empty">Belum ada hasil scan pada sesi ini.</div>
  </section>
  <section class="panel"><div class="panelhead"><h2>Komik baru ditemukan</h2><button class="btn" id="reloadQueue">Muat ulang</button></div><div id="queue" class="empty">Memuat antrean…</div></section>
  <section class="panel"><div class="panelhead"><h2>Chapter baru ditemukan</h2><button class="btn" id="reloadChapterQueue">Muat ulang</button></div><div id="chapterQueue" class="empty">Memuat antrean chapter…</div></section>
  <section class="panel"><div class="panelhead"><h2>Scraper pencarian manual</h2><span class="tag">Multi-source</span></div>
-  <form id="scrapeForm" class="tabletools"><input class="field search" name="query" required placeholder="Cari judul manhwa…"><select class="field" name="source"><option value="ratumanhwa">RatuManhwa</option><option value="komiku">Komiku</option></select><button class="btn">Jalankan scraper</button></form>
+  <form id="scrapeForm" class="tabletools"><input class="field search" name="query" required placeholder="Cari judul manhwa…"><select class="field" name="source"><option value="shinigami">Shinigami</option><option value="komiku">Komiku</option></select><button class="btn">Jalankan scraper</button></form>
   <p id="scrapeMsg" class="statusline">Pencarian manual tetap tersedia untuk mencari judul tertentu.</p>
  </section>`;
  $("#projectPending").textContent=fmt(await pendingCount());
@@ -232,12 +232,13 @@ async function runScraper(e){e.preventDefault();const f=new FormData(e.currentTa
 async function runUpdateScan(){
  const btn=$("#scanUpdates"),msg=$("#scanUpdateMsg"),summary=$("#scanSummary");
  try{
-  await guard();btn.disabled=true;btn.textContent="Memindai…";msg.textContent="Menghubungi katalog RatuManhwa dan membandingkan data…";summary.className="empty";summary.textContent="Scan sedang berjalan. Mohon tunggu…";
-  const {data,error}=await invokeAdminFunction("scan-updates",{});
+  await guard();btn.disabled=true;btn.textContent="Memindai…";msg.textContent="Menghubungi Shinigami dan Komiku…";summary.className="empty";summary.textContent="Scan sedang berjalan. Mohon tunggu…";
+  const sources=[];if($("#scanShinigami")?.checked)sources.push("shinigami");if($("#scanKomiku")?.checked)sources.push("komiku");if(!sources.length)throw new Error("Pilih minimal satu sumber scan.");
+  const {data,error}=await invokeAdminFunction("scan-updates",{sources});
   if(error)throw error;if(!data?.success)throw new Error(data?.message||"Scan gagal.");
   msg.textContent=data.message||"Scan selesai.";
   summary.className="notice";
-  summary.innerHTML='<div class="grid"><div><b>'+fmt(data.scanned_comics||0)+'</b><small style="display:block">Judul diperiksa</small></div><div><b>'+fmt(data.new_comics||0)+'</b><small style="display:block">Komik baru</small></div><div><b>'+fmt(data.new_chapters||0)+'</b><small style="display:block">Chapter baru</small></div><div><b>'+fmt(data.checked_series||0)+'</b><small style="display:block">Seri dicek</small></div></div>'+
+  summary.innerHTML='<div class="grid"><div><b>'+fmt(data.scanned_comics||0)+'</b><small style="display:block">Judul diperiksa (Shinigami + Komiku)</small></div><div><b>'+fmt(data.new_comics||0)+'</b><small style="display:block">Komik baru</small></div><div><b>'+fmt(data.new_chapters||0)+'</b><small style="display:block">Chapter baru</small></div><div><b>'+fmt(data.checked_series||0)+'</b><small style="display:block">Seri dicek</small></div></div>'+
    (data.warnings?.length?'<p style="margin:12px 0 0">Peringatan: '+data.warnings.map(w=>esc(w.title||"Sumber")+': '+esc(w.issue)).join(' • ')+'</p>':'')+
    '<p style="margin:10px 0 0">Semua hasil baru masuk antrean pemeriksaan. Belum diterbitkan.</p>';
   await Promise.all([loadQueue(),loadChapterQueue()]);
@@ -252,7 +253,7 @@ async function loadChapterQueue(){
   const rows=data.data||[];$("#chapterPendingCount").textContent=fmt(rows.length);
   el.className=rows.length?"tablewrap":"empty";
   el.innerHTML=rows.length?'<table><thead><tr><th>Komik</th><th>Chapter</th><th>Nomor</th><th>Sumber</th><th>Aksi</th></tr></thead><tbody>'+
-   rows.map(r=>'<tr><td><strong>'+esc(r.manhwa?.title||"Manhwa")+'</strong></td><td>'+esc(r.title||"—")+'</td><td>'+esc(r.chapter_number)+'</td><td>'+(r.source_url?'<a href="'+esc(r.source_url)+'" target="_blank" rel="noopener">Buka sumber</a>':'RatuManhwa')+'</td><td><button class="btn" data-chapter-review="'+r.id+'" data-status="approved">Setujui</button> <button class="btn" data-chapter-review="'+r.id+'" data-status="rejected">Tolak</button></td></tr>').join("")+
+   rows.map(r=>'<tr><td><strong>'+esc(r.manhwa?.title||"Manhwa")+'</strong></td><td>'+esc(r.title||"—")+'</td><td>'+esc(r.chapter_number)+'</td><td>'+(r.source_url?'<a href="'+esc(r.source_url)+'" target="_blank" rel="noopener">Buka sumber</a>':'Sumber')+'</td><td><button class="btn" data-chapter-review="'+r.id+'" data-status="approved">Setujui</button> <button class="btn" data-chapter-review="'+r.id+'" data-status="rejected">Tolak</button></td></tr>').join("")+
    '</tbody></table>':"Tidak ada chapter baru yang menunggu review.";
   el.querySelectorAll("[data-chapter-review]").forEach(b=>b.onclick=()=>reviewChapter(b));
  }catch(e){el.className="notice";el.textContent="Antrean chapter gagal dimuat: "+e.message}
