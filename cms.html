@@ -210,11 +210,11 @@ async function project(){
   <article class="kpi"><div class="kpi-top">Mode scan</div><strong>Auto + manual</strong><small>Otomatis tiap 4 jam · review tetap manual</small></article>
  </div>
  <section class="panel">
-  <div class="panelhead"><div><h2>Kelola URL sumber</h2><p class="sub">Cukup masukkan URL katalog. Bot mencoba mendeteksi otomatis daftar judul, cover, dan chapter; selector khusus hanya diperlukan jika struktur situs tidak umum.</p></div><span class="tag">Admin managed</span></div>
+  <div class="panelhead"><div><h2>Kelola link sumber komik</h2><p class="sub">Admin cukup memasukkan link halaman katalog/terbaru dari situs komik — bukan API dan tidak perlu API key. Bot membaca halaman situs, lalu mendeteksi judul, cover, halaman detail, dan chapter secara otomatis. Selector lanjutan hanya dipakai bila struktur situs tidak umum.</p></div><span class="tag">URL manual · tanpa API</span></div>
   <form id="sourceForm" class="formgrid">
    <input type="hidden" name="source_key">
    <label>Nama sumber<input class="field" name="name" required placeholder="Contoh: Shinigami"></label>
-   <label class="wide">URL katalog / halaman terbaru<input class="field" name="catalog_url" type="url" required placeholder="https://domain.com/latest/"></label>
+   <label class="wide">Link halaman katalog / terbaru (bukan API)<input class="field" name="catalog_url" type="url" required placeholder="https://situs-komik.com/komik-terbaru/"></label>
    <label>Batas judul per scan<input class="field" name="scan_limit" type="number" min="1" max="100" value="15"></label>
    <label><span><input type="checkbox" name="enabled" checked> Aktifkan untuk scan otomatis dan manual</span></label>
    <details class="wide"><summary>Pengaturan lanjutan (opsional — bot mencoba mendeteksi otomatis)</summary>
@@ -228,7 +228,7 @@ async function project(){
      <label>Selector teks chapter<input class="field" name="chapter_title_selector" value="AUTO"></label>
     </div>
    </details>
-   <div class="wide"><button class="btn primary" type="submit" id="saveSourceBtn">Simpan URL sumber</button> <button class="btn" type="reset" id="resetSourceBtn">Kosongkan form</button><p id="sourceFormMsg" class="statusline">Cukup isi nama dan URL katalog. Bot akan mencoba membaca struktur situs secara otomatis.</p></div>
+   <div class="wide"><button class="btn primary" type="submit" id="saveSourceBtn">Simpan URL sumber</button> <button class="btn" type="reset" id="resetSourceBtn">Kosongkan form</button><p id="sourceFormMsg" class="statusline">Isi nama sumber dan link halaman katalog biasa. Tidak perlu API atau API key; bot mencoba membaca struktur situs secara otomatis.</p></div>
   </form>  <div id="sourceRows" class="empty">Memuat sumber URL…</div>
  </section>
  <section class="panel">
