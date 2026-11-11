@@ -397,7 +397,6 @@ async function master(){
  $("#manhwaForm").onsubmit=saveManhwa;
  $("#masterLoad").onclick=()=>{masterPage=0;loadMasterRows()};
  $("#refreshScrapedMaster").onclick=loadScrapedMasterQueue;
- $("#importAllScraped").onclick=importAllScraped;
  $("#masterStatus").onchange=()=>{masterPage=0;loadMasterRows()};
  $("#masterSearch").onkeydown=e=>{if(e.key==="Enter"){masterPage=0;loadMasterRows()}};
  await Promise.all([loadMasterRows(),loadScrapedMasterQueue()]);
