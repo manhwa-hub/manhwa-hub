@@ -607,6 +607,10 @@ async function media(){
  <p class="sub">Satu URL HTTPS per baris. URL akan ditautkan langsung ke pembaca; gambar eksternal akan disalin ke Cloudflare R2 jika memilih tombol unduh, atau ditautkan langsung jika memilih tombol tautkan.</p>
  <label>Daftar URL gambar<textarea class="field" id="mediaImageUrls" rows="5" placeholder="https://situs-sumber.com/gambar/halaman-1.jpg&#10;https://situs-sumber.com/gambar/halaman-2.jpg"></textarea></label>
  <div class="actions"><button class="btn primary" type="button" id="downloadImageUrls">Unduh &amp; simpan ke Cloudflare R2</button><button class="btn" type="button" id="linkImageUrls">Tautkan URL eksternal saja</button></div><span id="urlImportMessage" class="statusline"></span></form></section>
+ <section class="panel"><div class="panelhead"><h2>Migrasi media lama</h2><span class="tag">Salin aman ke R2</span></div>
+ <p class="sub">Salin semua file dari Supabase Storage bucket chapter-pages ke Cloudflare R2. URL yang dipakai chapter akan diperbarui setelah salinan terverifikasi. File asli di Supabase tidak dihapus.</p>
+ <button class="btn primary" type="button" id="migrateLegacyMedia">Salin media lama ke Cloudflare R2</button>
+ <span class="statusline" id="legacyMigrationMessage">Migrasi belum dijalankan.</span></section>
  <section class="panel"><div class="panelhead"><h2>Media tersimpan</h2><button class="btn" id="refreshMedia">Muat ulang</button></div>
  <input class="field" id="mediaSearch" placeholder="Cari nama file…"><div id="mediaRows" class="empty">Memuat file…</div><div class="panelhead"><h2>Halaman terpasang di chapter</h2></div><div id="chapterPages" class="empty">Pilih chapter untuk melihat halaman.</div></section>`;
  const chapter=$("#mediaChapter"),files=$("#mediaFiles"),msg=$("#mediaMessage"),rows=$("#mediaRows"),pageRows=$("#chapterPages");
@@ -666,6 +670,21 @@ async function media(){
   finally{button.disabled=false}
  };
  $("#mediaUpload").onsubmit=async e=>{e.preventDefault();const chosen=Array.from(files.files||[]),id=chapter.value;if(!id||!chosen.length)return;for(const f of chosen){if(!/^image\/(jpeg|png|webp|gif)$/.test(f.type)||f.size>8*1024*1024){msg.textContent="Format tidak didukung atau ukuran melebihi 8 MB: "+f.name;return}}const btn=$("#uploadMedia");btn.disabled=true;try{let uploaded=0,failed=0;const details=[];for(let offset=0;offset<chosen.length;offset+=15){const form=new FormData();form.append("chapter_id",id);for(const file of chosen.slice(offset,offset+15))form.append("files",file,file.name);const {data,error}=await invokeAdminFunction("r2-media",form);if(error)throw error;if(!data)throw new Error("Server tidak mengembalikan hasil upload.");uploaded+=Number(data.uploaded||0);failed+=Number(data.failed||0);for(const item of data.results||[])if(item.status==="failed")details.push(item.message||"Upload gagal.")}msg.textContent=uploaded+" gambar berhasil diunggah ke Cloudflare R2; "+failed+" gagal."+(details.length?" Detail: "+[...new Set(details)].slice(0,3).join(" | "):"");if(uploaded){toast("Halaman chapter tersimpan di R2.");files.value="";await load();await loadChapterPages()}}catch(e){msg.textContent="Upload gagal: "+e.message}finally{btn.disabled=false}};
+ const migrateButton=$("#migrateLegacyMedia"),migrationMessage=$("#legacyMigrationMessage");
+ migrateButton.onclick=async()=>{
+  if(!confirm("Salin semua file lama dari Supabase Storage ke Cloudflare R2? URL chapter akan diperbarui setelah verifikasi. File asli tidak akan dihapus."))return;
+  migrateButton.disabled=true;migrationMessage.textContent="Memindai dan menyalin media lama ke R2… Jangan tutup halaman CMS.";
+  try{
+   const {data,error}=await invokeAdminFunction("r2-media",{action:"migrate_legacy"});
+   if(error)throw error;
+   if(!data)throw new Error("Server tidak mengembalikan hasil migrasi.");
+   migrationMessage.textContent="Selesai: "+data.objects+" objek diperiksa, "+data.copied+" disalin, "+data.already_present+" sudah ada, "+data.references_updated+" URL chapter diperbarui, "+data.failed+" gagal. File asli tetap disimpan.";
+   if(data.failed)toast("Migrasi selesai sebagian. Periksa rincian di status migrasi.");
+   else toast("Migrasi media lama ke R2 berhasil.");
+   await load();await loadChapterPages();
+  }catch(error){migrationMessage.textContent="Migrasi gagal: "+error.message}
+  finally{migrateButton.disabled=false}
+ };
  await load();await loadChapterPages();
 }
 function showModule(key){if(key==="media"){active="media";render();return}if(["homepage","seo","audit"].includes(key)){active="editor";render();return}const names={legacy:"Editor lama tersedia melalui tombol Legacy Admin di sidebar.",media:"Media Library lanjutan belum terhubung. Aset yang sudah ada berada di Supabase Storage bucket chapter-pages.",users:"Daftar pengguna akan diaktifkan setelah kebijakan akses dan permission matrix ditambahkan.",quality:"Pemeriksaan kualitas data membutuhkan aturan uniqueness dan constraint database.",moderation:"Moderation Center membutuhkan report queue dan audit schema.",analytics:"Analytics membutuhkan event ingestion serta aggregation jobs.",access:"Permission matrix dan MFA belum dikonfigurasi.",jobs:"Health endpoint background jobs dan API metrics belum tersedia."};content.innerHTML=head("MODULE STATUS",""+(key||"Module"),"Status implementasi modul.")+`<div class="notice">${esc(names[key]||"Modul ini belum dikonfigurasi.")}</div><button class="btn" data-view="editor">Kembali ke Editor Admin</button>`}
