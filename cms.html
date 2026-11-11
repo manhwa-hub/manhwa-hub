@@ -351,6 +351,7 @@ async function editor(){
   ${module("⌂","Homepage CMS","Atur judul hero dan heading bagian homepage.","Pengaturan Homepage","homepage")}
   ${module("⌕","SEO CMS","Atur title, deskripsi, keyword, dan canonical URL.","Pengaturan SEO","seo")}
   ${module("▤","Audit & revisions","Lihat riwayat perubahan pengaturan CMS.","Lihat Audit Log","audit")}
+  ${module("▧","Media Manager","Kelola cover dan gambar halaman chapter.","Buka Media Manager","media")}
  </div>
  <section class="panel"><div class="panelhead"><h2>Homepage settings</h2><span class="tag">Database live</span></div>
  <form id="homepageSettings" class="form">
@@ -409,7 +410,7 @@ async function media(){
  const {data:chs,error:ce}=await db.from("chapters").select("id,chapter_number,title,manhwa:manhwa_id(title)").order("chapter_number").limit(500);if(ce)throw ce;
  chapter.innerHTML='<option value="">Pilih chapter…</option>'+(chs||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc((x.manhwa?.title||"Manhwa")+" · Chapter "+x.chapter_number+(x.title?" — "+x.title:""))+'</option>').join("");
  let items=[];
- async function load(){rows.className="empty";rows.textContent="Memuat file…";try{const {data,error}=await db.storage.from(bucket).list("",{limit:1000,sortBy:{column:"name",order:"asc"}});if(error)throw error;items=(data||[]).filter(x=>x.id&&x.name);draw()}catch(e){rows.className="notice";rows.textContent="Gagal memuat: "+e.message}}
+ async function load(){rows.className="empty";rows.textContent="Memuat file…";try{items=[];async function walk(prefix=""){const {data,error}=await db.storage.from(bucket).list(prefix,{limit:1000,sortBy:{column:"name",order:"asc"}});if(error)throw error;for(const x of data||[]){const path=prefix?prefix+"/"+x.name:x.name;if(x.id)items.push({...x,name:path});else await walk(path)}}await walk();draw()}catch(e){rows.className="notice";rows.textContent="Gagal memuat: "+e.message}}
  function draw(){const q=$("#mediaSearch").value.trim().toLowerCase(),shown=items.filter(x=>x.name.toLowerCase().includes(q));rows.className="tablewrap";rows.innerHTML=shown.length?'<table><thead><tr><th>Preview</th><th>File</th><th>Ukuran</th><th>Aksi</th></tr></thead><tbody>'+shown.map(x=>{const url=db.storage.from(bucket).getPublicUrl(x.name).data.publicUrl;return '<tr><td><img src="'+esc(url)+'" style="width:48px;height:62px;object-fit:cover;border-radius:7px" loading="lazy"></td><td>'+esc(x.name)+'</td><td>'+fmt(x.metadata?.size||0)+' B</td><td><button class="btn" data-copy="'+esc(url)+'">Salin URL</button> <button class="btn" data-delete="'+esc(x.name)+'">Hapus</button></td></tr>'}).join("")+'</tbody></table>':"Belum ada file media.";
  rows.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{const t=document.createElement("textarea");t.value=b.dataset.copy;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();toast("URL disalin.")});
  rows.querySelectorAll("[data-delete]").forEach(b=>b.onclick=async()=>{const path=b.dataset.delete;if(!confirm("Hapus file "+path+"?"))return;try{const {error}=await db.storage.from(bucket).remove([path]);if(error)throw error;await writeAudit("Menghapus media","storage:"+path);toast("Media dihapus.");await load()}catch(e){toast("Gagal: "+e.message)}});
