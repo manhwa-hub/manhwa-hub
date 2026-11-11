@@ -207,10 +207,10 @@ async function project(){
   <article class="kpi"><div class="kpi-top">Sumber scan</div><strong>Shinigami + Komiku</strong><small>Dual-source catalog</small></article>
   <article class="kpi"><div class="kpi-top">Review komik</div><strong id="projectPending">—</strong><small>Komik baru menunggu review</small></article>
   <article class="kpi"><div class="kpi-top">Review chapter</div><strong id="chapterPendingCount">—</strong><small>Chapter baru menunggu review</small></article>
-  <article class="kpi"><div class="kpi-top">Mode</div><strong>Manual scan</strong><small>Tidak publish otomatis</small></article>
+  <article class="kpi"><div class="kpi-top">Mode scan</div><strong>Auto + manual</strong><small>Otomatis tiap 4 jam · review tetap manual</small></article>
  </div>
  <section class="panel">
-  <div class="panelhead"><div><h2>Scan komik & chapter terbaru</h2><p class="sub">Cari judul baru di katalog sumber dan periksa chapter terbaru untuk komik yang sudah ada.</p></div><span class="tag">Live scan</span></div>
+  <div class="panelhead"><div><h2>Scan komik & chapter terbaru</h2><p class="sub">Scan otomatis berjalan tiap 4 jam. Tombol di bawah tetap tersedia untuk scan manual kapan saja; hasil baru selalu masuk antrean review dan tidak langsung diterbitkan.</p></div><span class="tag">Live scan</span></div>
   <div class="tabletools"><label><input type="checkbox" id="scanShinigami" checked> Shinigami</label><label><input type="checkbox" id="scanKomiku" checked> Komiku</label></div><button class="btn primary" id="scanUpdates">↻ Mulai Scan Update</button>
   <p id="scanUpdateMsg" class="statusline">Scan hanya mengambil metadata dan memasukkan hasil baru ke antrean review. Tidak mengubah data yang sudah terbit.</p>
   <div id="scanSummary" class="empty">Belum ada hasil scan pada sesi ini.</div>
