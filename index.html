@@ -682,6 +682,15 @@ async function reader(){
      setTimeout(()=>{img.src=retryUrl.href;},500*(retries+1));
      return;
     }
+    try{
+     const failedUrl=new URL(img.src);
+     const match=failedUrl.pathname.match(/\/legacy\/pages\/(.+)$/);
+     if(match&&!img.dataset.fallbackTried){
+      img.dataset.fallbackTried="1";
+      img.src=db.storage.from("chapter-pages").getPublicUrl("pages/"+decodeURIComponent(match[1])).data.publicUrl;
+      return;
+     }
+    }catch(error){console.warn("Fallback gambar lama gagal disiapkan:",error)}
     loaded();img.classList.add("image-failed");
     const message=document.createElement("div");
     message.className="reader-image-error";
