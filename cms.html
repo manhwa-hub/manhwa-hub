@@ -601,8 +601,12 @@ async function media(){
  <section class="panel"><div class="panelhead"><h2>Upload gambar chapter</h2><span class="tag">Maksimal 15 MB/file</span></div>
  <form id="mediaUpload" class="form">
  <label>Pilih chapter<select class="field" id="mediaChapter" required><option value="">Memuat chapter…</option></select></label>
- <label>File gambar<input class="field" id="mediaFiles" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple required></label>
- <button class="btn primary" id="uploadMedia">Unggah gambar</button><span id="mediaMessage" class="statusline"></span></form></section>
+ <label>File gambar<input class="field" id="mediaFiles" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label>
+ <button class="btn primary" id="uploadMedia">Unggah file ke Storage</button><span id="mediaMessage" class="statusline"></span>
+ <div class="divider"></div><h3>Tambahkan URL gambar chapter</h3>
+ <p class="sub">Satu URL HTTPS per baris. URL akan ditautkan langsung ke pembaca; gambar eksternal belum disalin ke Storage atau R2.</p>
+ <label>Daftar URL gambar<textarea class="field" id="mediaImageUrls" rows="5" placeholder="https://situs-sumber.com/gambar/halaman-1.jpg&#10;https://situs-sumber.com/gambar/halaman-2.jpg"></textarea></label>
+ <button class="btn" type="button" id="linkImageUrls">Tambahkan URL ke chapter</button><span id="urlImportMessage" class="statusline"></span></form></section>
  <section class="panel"><div class="panelhead"><h2>Media tersimpan</h2><button class="btn" id="refreshMedia">Muat ulang</button></div>
  <input class="field" id="mediaSearch" placeholder="Cari nama file…"><div id="mediaRows" class="empty">Memuat file…</div><div class="panelhead"><h2>Halaman terpasang di chapter</h2></div><div id="chapterPages" class="empty">Pilih chapter untuk melihat halaman.</div></section>`;
  const chapter=$("#mediaChapter"),files=$("#mediaFiles"),msg=$("#mediaMessage"),rows=$("#mediaRows"),pageRows=$("#chapterPages");
@@ -615,6 +619,29 @@ async function media(){
  rows.querySelectorAll("[data-delete]").forEach(b=>b.onclick=async()=>{const path=b.dataset.delete;if(!confirm("Hapus file "+path+"?"))return;try{const publicUrl=db.storage.from(bucket).getPublicUrl(path).data.publicUrl;const {error:removeError}=await db.storage.from(bucket).remove([path]);if(removeError)throw removeError;const {error:pageDeleteError}=await db.from("chapter_pages").delete().eq("image_url",publicUrl);if(pageDeleteError)throw pageDeleteError;await writeAudit("Menghapus media","storage:"+path,{public_url:publicUrl});toast("Media dan tautan halaman dihapus.");await load();await loadChapterPages()}catch(e){toast("Gagal: "+e.message)}});
  }
  async function loadChapterPages(){const id=chapter.value;if(!id){pageRows.className="empty";pageRows.textContent="Pilih chapter untuk melihat halaman.";return}pageRows.className="empty";pageRows.textContent="Memuat halaman chapter…";try{const {data,error}=await db.from("chapter_pages").select("id,page_number,image_url").eq("chapter_id",id).order("page_number",{ascending:true});if(error)throw error;pageRows.className="tablewrap";pageRows.innerHTML=data?.length?'<table><thead><tr><th>Halaman</th><th>Preview</th><th>URL</th></tr></thead><tbody>'+data.map(p=>'<tr><td>'+p.page_number+'</td><td><img src="'+esc(p.image_url)+'" style="width:48px;height:62px;object-fit:cover;border-radius:7px" loading="lazy"></td><td><a href="'+esc(p.image_url)+'" target="_blank" rel="noopener">Buka gambar</a></td></tr>').join("")+'</tbody></table>':"Belum ada halaman terhubung ke chapter ini."}catch(e){pageRows.className="notice";pageRows.textContent="Gagal memuat halaman: "+e.message}}chapter.onchange=loadChapterPages;$("#mediaSearch").oninput=draw;$("#refreshMedia").onclick=load;
+ $("#linkImageUrls").onclick=async()=>{
+  const id=chapter.value,output=$("#urlImportMessage"),raw=$("#mediaImageUrls").value;
+  if(!id){output.textContent="Pilih chapter terlebih dahulu.";return}
+  const lines=raw.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+  if(!lines.length){output.textContent="Masukkan minimal satu URL.";return}
+  if(lines.length>100){output.textContent="Maksimal 100 URL dalam sekali proses.";return}
+  const urls=[],invalid=[];
+  for(const value of lines){try{const u=new URL(value);if(u.protocol!=="https:"||u.username||u.password||u.hostname==="localhost"||!u.hostname.includes("."))throw new Error();if(!urls.includes(u.href))urls.push(u.href)}catch(_){invalid.push(value)}}
+  if(invalid.length){output.textContent=invalid.length+" URL tidak valid. Hanya URL HTTPS publik yang diterima.";return}
+  const button=$("#linkImageUrls");button.disabled=true;output.textContent="Memeriksa URL yang sudah terpasang…";
+  try{
+   const {data:existing,error:readError}=await db.from("chapter_pages").select("page_number,image_url").eq("chapter_id",id).order("page_number",{ascending:false}).limit(500);
+   if(readError)throw readError;
+   const known=new Set((existing||[]).map(x=>x.image_url)),fresh=urls.filter(url=>!known.has(url));
+   if(!fresh.length){output.textContent="Semua URL sudah terpasang; tidak ada duplikasi ditambahkan.";return}
+   const firstPage=(existing?.[0]?.page_number||0)+1,records=fresh.map((url,index)=>({chapter_id:id,page_number:firstPage+index,image_url:url}));
+   const {error:insertError}=await db.from("chapter_pages").insert(records);if(insertError)throw insertError;
+   await writeAudit("Menautkan URL gambar chapter","chapter:"+id,{urls:fresh,page_numbers:records.map(x=>x.page_number),storage:"external_url"});
+   output.textContent=fresh.length+" URL berhasil ditautkan sebagai halaman eksternal (belum disalin ke Storage/R2).";
+   $("#mediaImageUrls").value="";await loadChapterPages();
+  }catch(error){output.textContent="Gagal menautkan URL: "+error.message}
+  finally{button.disabled=false}
+ };
  $("#mediaUpload").onsubmit=async e=>{e.preventDefault();const chosen=Array.from(files.files||[]),id=chapter.value;if(!id||!chosen.length)return;for(const f of chosen){if(!/^image\/(jpeg|png|webp|gif)$/.test(f.type)||f.size>15*1024*1024){msg.textContent="Format tidak didukung atau ukuran melebihi 15 MB: "+f.name;return}}
  const btn=$("#uploadMedia");btn.disabled=true;try{const paths=[];for(let i=0;i<chosen.length;i++){const f=chosen[i],ext=f.name.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg",path=id+"/"+Date.now()+"-"+i+"-"+crypto.randomUUID()+"."+ext;const {error}=await db.storage.from(bucket).upload(path,f,{contentType:f.type,upsert:false});if(error)throw error;paths.push(path)}const {data:existing,error:pageError}=await db.from("chapter_pages").select("page_number").eq("chapter_id",id).order("page_number",{ascending:false}).limit(1);if(pageError)throw pageError;const firstPage=(existing?.[0]?.page_number||0)+1;const pageRowsToInsert=paths.map((path,index)=>({chapter_id:id,page_number:firstPage+index,image_url:db.storage.from(bucket).getPublicUrl(path).data.publicUrl}));const {error:insertError}=await db.from("chapter_pages").insert(pageRowsToInsert);if(insertError){await db.storage.from(bucket).remove(paths);throw insertError}await writeAudit("Mengunggah halaman chapter","chapter:"+id,{files:paths,page_numbers:pageRowsToInsert.map(x=>x.page_number)});msg.textContent=paths.length+" gambar berhasil diunggah dan ditautkan ke chapter.";toast("Halaman chapter tersimpan.");files.value="";await load();await loadChapterPages()}catch(e){msg.textContent="Upload gagal: "+e.message}finally{btn.disabled=false}};
  await load();await loadChapterPages();
