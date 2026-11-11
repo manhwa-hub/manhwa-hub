@@ -131,6 +131,29 @@ Deno.serve(async (req: Request) => {
       if (item.status !== "pending") return json({ success: false, message: "Item ini sudah pernah diperiksa." }, 409, origin);
 
       if (status === "approved") {
+        const normalizeTitle = (value: string) => value.toLowerCase().normalize("NFKD")
+          .replace(/[\\u0300-\\u036f]/g, "").replace(/^\\s*baca\\s+/i, "")
+          .replace(/[^a-z0-9]+/g, " ").trim();
+        const { data: existingRows, error: existingError } = await admin.from("manhwa").select("id,title,cover_url,synopsis");
+        if (existingError) throw existingError;
+        const existing = (existingRows || []).find((row: any) => normalizeTitle(row.title) === normalizeTitle(item.title));
+        if (existing) {
+          const patch: Record<string, unknown> = {};
+          if (!existing.cover_url && item.cover_url) patch.cover_url = item.cover_url;
+          if (!existing.synopsis && item.description) patch.synopsis = item.description;
+          if (Object.keys(patch).length) {
+            const { error: mergeError } = await admin.from("manhwa").update(patch).eq("id", existing.id);
+            if (mergeError) throw mergeError;
+          }
+          const { error: linkError } = await admin.from("scraped_chapters")
+            .update({ manhwa_id: existing.id, updated_at: new Date().toISOString() })
+            .eq("scraped_manhwa_id", id).is("manhwa_id", null);
+          if (linkError) throw linkError;
+          const { error: statusError } = await admin.from("scraped_manhwa")
+            .update({ status: "approved", updated_at: new Date().toISOString() }).eq("id", id);
+          if (statusError) throw statusError;
+          return json({ success: true, merged: true, manhwa_id: existing.id, message: "Judul sudah ada di Master Data. Data digabung tanpa membuat duplikat; chapter sudah ditautkan." }, 200, origin);
+        }
         const baseSlug = slugify(item.title) || `manhwa-${item.id}`;
         const slug = `${baseSlug}-${item.id}`;
         const { data: inserted, error: insertError } = await admin.from("manhwa").insert({
