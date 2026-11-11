@@ -185,12 +185,12 @@ async function dashboard(){
  $("#pending").innerHTML=`<b style="font-size:24px">${fmt(pending)}</b><p class="muted">Item menunggu pemeriksaan scraper</p><button class="btn" data-view="project">Buka antrean</button>`;
  $("#health").innerHTML=`<div class="activityrow"><i class="dot" style="background:var(--green)"></i><div><b>Supabase</b><small>Terhubung dan query berhasil</small></div></div><div class="activityrow"><i class="dot" style="background:var(--amber)"></i><div><b>Analytics ingestion</b><small>Belum dikonfigurasi</small></div></div><div class="activityrow"><i class="dot" style="background:var(--amber)"></i><div><b>Background jobs / queue</b><small>Belum ada health endpoint</small></div></div>`;
 }
-async function invokeAdminFunction(name,body){
+async function invokeAdminFunction(name,body,extraHeaders={}){
  const {data,error:sessionError}=await db.auth.getSession();
  if(sessionError)throw sessionError;
  const token=data?.session?.access_token;
  if(!token)throw new Error("Sesi admin tidak memiliki access token. Silakan login ulang.");
- const result=await db.functions.invoke(name,{body,headers:{Authorization:"Bearer "+token}});
+ const result=await db.functions.invoke(name,{body,headers:{Authorization:"Bearer "+token,...extraHeaders}});
  if(result.error){
   const response=result.error.context;
   let detail="";
@@ -675,7 +675,7 @@ async function media(){
   if(!confirm("Salin semua file lama dari Supabase Storage ke Cloudflare R2? URL chapter akan diperbarui setelah verifikasi. File asli tidak akan dihapus."))return;
   migrateButton.disabled=true;migrationMessage.textContent="Memindai dan menyalin media lama ke R2… Jangan tutup halaman CMS.";
   try{
-   const {data,error}=await invokeAdminFunction("r2-media",{action:"migrate_legacy"});
+   const {data,error}=await invokeAdminFunction("r2-media",{},{"x-r2-action":"migrate_legacy"});
    if(error)throw error;
    if(!data)throw new Error("Server tidak mengembalikan hasil migrasi.");
    migrationMessage.textContent="Selesai: "+data.objects+" objek diperiksa, "+data.copied+" disalin, "+data.already_present+" sudah ada, "+data.references_updated+" URL chapter diperbarui, "+data.failed+" gagal. File asli tetap disimpan.";
